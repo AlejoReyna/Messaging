@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Eraser, Github, Settings, Volume2, VolumeX, WifiOff } from 'lucide-react';
 import type { Message, PublicUser } from '@private-chat/contracts';
 import type { PendingMessage } from '../lib/store';
+import type { ReplyTarget } from '../hooks/useChat';
 import { playHalo, useSoundEnabled } from '../lib/sound';
 import { formatDay } from '../lib/format';
 import { AvatarView } from './AvatarView';
@@ -37,8 +38,8 @@ export function ChatPanel({
   onOpenSettings: () => void;
   onLoadMore: () => Promise<void>;
   onReload: () => void;
-  onSend: (body: string) => Promise<void>;
-  onSendPhoto?: (file: File, caption: string) => Promise<void>;
+  onSend: (body: string, replyTo?: ReplyTarget | null) => Promise<void>;
+  onSendPhoto?: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void>;
   onRetry: (id: string) => Promise<void>;
   onDiscardPending: (id: string) => void;
   onTyping: (t: boolean) => void;
@@ -48,6 +49,9 @@ export function ChatPanel({
   clearArmed: boolean;
 }) {
   const [partnerAvatarOpen, setPartnerAvatarOpen] = useState(false);
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const highlightTimer = useRef<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const prevCount = useRef(0);
@@ -132,6 +136,20 @@ export function ChatPanel({
         });
       });
     }
+  }
+
+  function authorOf(senderId: string): string {
+    if (senderId === me.id) return me.displayName;
+    return partner?.displayName ?? 'Contacto';
+  }
+
+  function jumpToOriginal(messageId: string) {
+    const target = document.getElementById(`msg-${messageId}`);
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightId(messageId);
+    if (highlightTimer.current) window.clearTimeout(highlightTimer.current);
+    highlightTimer.current = window.setTimeout(() => setHighlightId(null), 1600);
   }
 
   return (
@@ -307,7 +325,8 @@ export function ChatPanel({
               const prev = i > 0 ? messages[i - 1] : undefined;
               const showDay = !prev || dayKey(prev.createdAt) !== dayKey(m.createdAt);
               return (
-                <div key={m.id}>
+                <div key={m.id} id={`msg-${m.id}`}
+                  className={highlightId === m.id ? 'reply-flash rounded-3xl' : undefined}>
                   {showDay && (
                     <p className="enter-up mb-2 mt-3 text-center text-xs font-medium text-muted">
                       <time dateTime={m.createdAt}>{formatDay(m.createdAt)}</time>
@@ -319,6 +338,9 @@ export function ChatPanel({
                     read={readByPartner >= m.sequence}
                     isAdmin={isAdmin}
                     onDelete={onDeleteMessage}
+                    onReply={(target) => setReplyTo({ message: target, author: authorOf(target.senderId) })}
+                    replyAuthorName={m.replyTo ? authorOf(m.replyTo.senderId) : undefined}
+                    onQuoteClick={jumpToOriginal}
                     animate={readyRef.current && m.sequence > maxSeenRef.current}
                   />
                 </div>
@@ -329,10 +351,12 @@ export function ChatPanel({
                 key={p.clientMessageId}
                 body={p.body}
                 photo={p.photo}
+                replyTo={p.replyTo}
                 failed={p.status === 'failed'}
                 error={p.error}
                 onRetry={() => void onRetry(p.clientMessageId)}
                 onDiscard={() => onDiscardPending(p.clientMessageId)}
+                onQuoteClick={jumpToOriginal}
               />
             ))}
             {partnerTyping && (
@@ -351,7 +375,8 @@ export function ChatPanel({
 
       {/* Entrada */}
       <footer className="chat-footer shrink-0 border-t border-line/70 bg-surface px-4 pb-4 pt-4 sm:px-6 sm:pb-5">
-        <Composer onSendPhoto={onSendPhoto} onSend={onSend} onTyping={onTyping} disabled={loading || !!loadError} />
+        <Composer onSendPhoto={onSendPhoto} onSend={onSend} onTyping={onTyping}
+          disabled={loading || !!loadError} replyTo={replyTo} onCancelReply={() => setReplyTo(null)} />
       </footer>
       {partnerAvatarOpen && partner && <AvatarPreview user={partner} onClose={() => setPartnerAvatarOpen(false)} />}
     </section>

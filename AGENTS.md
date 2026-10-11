@@ -17,7 +17,7 @@ Lee `docs/CONTRACT.md` y `packages/contracts/src/index.ts` antes de implementar.
 
 ## Alcance y seguridad
 
-MVP: texto y emojis, fotos en mensajes (elegidas explícitamente por el usuario), perfiles, historial persistente, estados de envío/lectura, reconexión, escritura/presencia, borrado individual de mensajes propios y administración del borrado. Las llamadas, los audios, otros adjuntos y el cifrado de extremo a extremo están fuera de este MVP hasta que el usuario los elija. No presentes HTTPS como cifrado de extremo a extremo.
+MVP: texto y emojis, fotos en mensajes (elegidas explícitamente por el usuario), respuestas citadas, perfiles, historial persistente, estados de envío/lectura, reconexión, escritura/presencia, borrado individual de mensajes propios y administración del borrado. Las llamadas, los audios, otros adjuntos y el cifrado de extremo a extremo están fuera de este MVP hasta que el usuario los elija. No presentes HTTPS como cifrado de extremo a extremo.
 
 Contraseñas Argon2id, sesiones opacas revocables en cookies HttpOnly/Secure/SameSite, CSRF, Origin estricto para sockets y autorización del lado servidor. Sin registro público, secretos en frontend, JWT en localStorage, contraseñas en logs, contenido de mensajes en logs ni datos de producción inventados.
 

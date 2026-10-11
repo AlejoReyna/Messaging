@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const CONTRACT_VERSION = 3;
+export const CONTRACT_VERSION = 4;
 export const MAX_MESSAGE_LENGTH = 4000;
 export const MAX_CHAT_PHOTO_BYTES = 5 * 1024 * 1024;
 export const PHOTO_MESSAGE_BODY = '📷 Foto';
@@ -98,12 +98,19 @@ export const MessageSchema = z.strictObject({
   sequence: positiveInteger,
   body: MessageBodySchema,
   photoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/photo$/i).optional(),
+  replyTo: z.strictObject({
+    messageId: uuid,
+    senderId: uuid,
+    body: MessageBodySchema,
+    photoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/photo$/i).optional(),
+  }).optional(),
   createdAt: timestamp,
 });
 export const SendMessageInputSchema = z.strictObject({
   clientMessageId: uuid,
   body: MessageBodySchema,
   conversationVersion: positiveInteger,
+  replyToMessageId: uuid.optional(),
 });
 export const MessageCreatedEventSchema = z.strictObject({ message: MessageSchema });
 export const MessagesQuerySchema = z.strictObject({

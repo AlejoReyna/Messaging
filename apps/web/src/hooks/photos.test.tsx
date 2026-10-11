@@ -42,7 +42,7 @@ describe('pendientes con foto', () => {
       photoUrl: '/api/messages/33333333-3333-4333-8333-333333333333/photo' };
     vi.mocked(sendPhoto).mockResolvedValueOnce({ message, repeated: true });
     await act(() => result.current.retry(item.clientMessageId));
-    expect(sendPhoto).toHaveBeenLastCalledWith(file, { clientMessageId: item.clientMessageId, body: PHOTO_MESSAGE_BODY, conversationVersion: 1 }, 'csrf');
+    expect(sendPhoto).toHaveBeenLastCalledWith(file, { clientMessageId: item.clientMessageId, body: PHOTO_MESSAGE_BODY, conversationVersion: 1 }, 'csrf', undefined);
     expect(result.current.pending).toEqual([]);
     expect(result.current.messages).toEqual([message]);
   });

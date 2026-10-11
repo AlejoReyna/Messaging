@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ImagePlus, SendHorizontal, Sticker, X } from 'lucide-react';
+import { ImagePlus, Reply, SendHorizontal, Sticker, X } from 'lucide-react';
 import { MAX_MESSAGE_LENGTH } from '@private-chat/contracts';
 import { validateAvatarFile } from '../lib/api';
 import type { ChatSticker } from '../lib/stickers';
+import { snippetOf } from '../lib/reply';
+import type { ReplyTarget } from '../hooks/useChat';
 import { StickerPicker } from './StickerPicker';
 
 export function Composer({
-  onSend, onSendPhoto, onTyping, disabled, placeholder,
+  onSend, onSendPhoto, onTyping, disabled, placeholder, replyTo, onCancelReply,
 }: {
-  onSend: (body: string) => Promise<void> | void;
-  onSendPhoto?: (file: File, caption: string) => Promise<void> | void;
+  onSend: (body: string, replyTo?: ReplyTarget | null) => Promise<void> | void;
+  onSendPhoto?: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void> | void;
   onTyping: (isTyping: boolean) => void;
   disabled?: boolean;
   placeholder?: string;
+  replyTo?: ReplyTarget | null;
+  onCancelReply?: () => void;
 }) {
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -67,14 +71,15 @@ export function Composer({
     setSending(true);
     onTyping(false);
     try {
-      if (sticker) await onSend(sticker.body);
-      else if (photo && onSendPhoto) await onSendPhoto(photo, body);
-      else await onSend(body);
+      if (sticker) await onSend(sticker.body, replyTo ?? null);
+      else if (photo && onSendPhoto) await onSendPhoto(photo, body, replyTo ?? null);
+      else await onSend(body, replyTo ?? null);
       setSticker(null);
       setStickerReady(false);
       setPhoto(null);
       setPhotoError(null);
       if (!sticker) setValue('');
+      onCancelReply?.();
       inputRef.current?.focus();
     } catch {
       setPhotoError('No se pudo enviar. Inténtalo de nuevo.');
@@ -91,6 +96,20 @@ export function Composer({
       onKeyDown={(event) => {
         if (event.key === 'Escape' && stickersOpen) { event.preventDefault(); event.stopPropagation(); closeStickers(); }
       }}>
+      {replyTo && !disabled && !sending && (
+        <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface-muted px-3 py-2" aria-label={`Respondiendo a ${replyTo.author}`}>
+          <Reply className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+          <div className="min-w-0 flex-1 border-l-2 border-accent pl-2">
+            <p className="truncate text-xs font-bold text-accent">{replyTo.author}</p>
+            <p className="truncate text-sm text-muted">{snippetOf(replyTo.message.body, replyTo.message.photoUrl)}</p>
+          </div>
+          <button type="button" onClick={() => { onCancelReply?.(); inputRef.current?.focus(); }}
+            aria-label="Cancelar respuesta"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-hover active:scale-90">
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
       {stickersOpen && !disabled && !sending && <StickerPicker onClose={closeStickers} onSelect={(selected) => {
         setSticker(selected);
         setStickerReady(false);

@@ -53,3 +53,7 @@ Stickers Chiikawa (40, selector con preview/Enviar, borrador conservado) y fotos
 ## Publicación CI/CD — 2026-10-11
 
 Commit `89d4de1` publicado por el flujo CI/CD (CI + Deploy verdes): stickers, fotos, borrado propio y migración 0003 en producción, web/ready 200 y base de datos intacta.
+
+## Respuestas citadas — 2026-10-11
+
+Responder con cita (botón por burbuja, preview cancelable, salto al original) para texto, stickers y fotos, contrato v4 y migración 0004. `npm run verify:local` 163/163. Publicación por CI/CD pendiente.

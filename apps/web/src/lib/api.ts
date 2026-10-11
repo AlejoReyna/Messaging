@@ -261,12 +261,12 @@ export async function getMessages(params: MessagesParams = {}): Promise<Messages
   return json(res, (v) => MessagesPageSchema.parse(v));
 }
 
-export async function sendMessage(input: SendMessageInput, csrfToken: string): Promise<{ message: Message; repeated: boolean }> {
+export async function sendMessage(input: SendMessageInput, csrfToken: string, replyToMessageId?: string): Promise<{ message: Message; repeated: boolean }> {
   const res = await fetch(API_ROUTES.messages, {
     method: 'POST',
     credentials: 'include',
     headers: headers(csrfToken, { 'Content-Type': 'application/json' }),
-    body: JSON.stringify(input),
+    body: JSON.stringify(replyToMessageId ? { ...input, replyToMessageId } : input),
   });
   if (!res.ok) await parseFailure(res);
   const data: unknown = await res.json();
@@ -275,13 +275,14 @@ export async function sendMessage(input: SendMessageInput, csrfToken: string): P
   return { message: parsed.data, repeated: res.status === 200 };
 }
 
-export async function sendPhoto(file: File, input: SendMessageInput, csrfToken: string): Promise<{ message: Message; repeated: boolean }> {
+export async function sendPhoto(file: File, input: SendMessageInput, csrfToken: string, replyToMessageId?: string): Promise<{ message: Message; repeated: boolean }> {
   const problem = validateAvatarFile(file);
   if (problem) throw toApiFailure(400, 'UPLOAD_INVALID', problem);
   const form = new FormData();
   form.append('clientMessageId', input.clientMessageId);
   form.append('conversationVersion', String(input.conversationVersion));
   form.append('body', input.body);
+  if (replyToMessageId) form.append('replyToMessageId', replyToMessageId);
   form.append('photo', file, 'photo');
   const res = await fetch(API_ROUTES.sendPhoto, {
     method: 'POST', credentials: 'include', headers: headers(csrfToken), body: form,

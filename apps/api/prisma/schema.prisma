@@ -73,11 +73,13 @@ model Message {
   body            String       @db.Text
   photoData       Bytes?       @map("photo_data")
   photoHash       String?      @map("photo_hash") @db.Text
+  replyToMessageId String?     @map("reply_to_message_id") @db.Text
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@unique([senderId, clientMessageId])
   @@unique([conversationId, sequence])
   @@index([conversationId, sequence])
+  @@index([replyToMessageId])
   @@schema("chat")
   @@map("messages")
 }

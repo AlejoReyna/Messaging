@@ -22,7 +22,7 @@ describe('envío de fotos', () => {
     fireEvent.load(preview);
     fireEvent.change(screen.getByLabelText('Escribe un mensaje'), { target: { value: 'Una foto' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enviar mensaje' }));
-    await waitFor(() => expect(onSendPhoto).toHaveBeenCalledExactlyOnceWith(file, 'Una foto'));
+    await waitFor(() => expect(onSendPhoto).toHaveBeenCalledExactlyOnceWith(file, 'Una foto', null));
     await waitFor(() => expect(screen.queryByAltText('Foto lista para enviar')).toBeNull());
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-photo');
   });
@@ -37,7 +37,7 @@ describe('envío de fotos', () => {
     fireEvent.change(screen.getByLabelText('Elegir foto'), { target: { files: [file] } });
     fireEvent.load(screen.getByAltText('Foto lista para enviar'));
     fireEvent.click(screen.getByRole('button', { name: 'Enviar mensaje' }));
-    await waitFor(() => expect(send).toHaveBeenCalledExactlyOnceWith(file, ''));
+    await waitFor(() => expect(send).toHaveBeenCalledExactlyOnceWith(file, '', null));
     fireEvent.change(screen.getByLabelText('Elegir foto'), { target: { files: [new File(['svg'], 'x.svg', { type: 'image/svg+xml' })] } });
     expect(screen.getByRole('alert')).toHaveTextContent('JPEG, PNG o WebP');
     expect(screen.queryByAltText('Foto lista para enviar')).toBeNull();

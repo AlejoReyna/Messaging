@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import {
   SendMessageInputSchema, UpdateProfileInputSchema, PublicUserSchema,
   MessagesQuerySchema, MessagesPageSchema, NewPasswordSchema, ChangePasswordInputSchema,
-  MessageDeletedEventSchema, TypingSetInputSchema, ApiErrorSchema,
+  MessageDeletedEventSchema, TypingSetInputSchema, ApiErrorSchema, MessageSchema,
 } from '../dist/index.js';
 
 const id = '11111111-1111-4111-8111-111111111111';
@@ -39,6 +39,21 @@ test('rechaza mensajes vacíos, IDs inválidos, controles y versiones inseguras'
   for (const patch of [{ body: '   ' }, { body: '\u0000' }, { body: 'a'.repeat(4001) }, { conversationVersion: 0 }, { conversationVersion: Number.MAX_SAFE_INTEGER + 1 }, { clientMessageId: '../secret' }]) {
     assert.equal(SendMessageInputSchema.safeParse({ ...valid, ...patch }).success, false);
   }
+});
+
+test('respuestas citadas: referencia opcional y cita autocontenida sin secretos', () => {
+  const base = { clientMessageId: id, body: 'De acuerdo', conversationVersion: 1 };
+  assert.equal(SendMessageInputSchema.safeParse(base).success, true);
+  assert.equal(SendMessageInputSchema.safeParse({ ...base, replyToMessageId: id }).success, true);
+  assert.equal(SendMessageInputSchema.safeParse({ ...base, replyToMessageId: 'no-uuid' }).success, false);
+  const message = {
+    id, clientMessageId: id, senderId: id, sequence: 2, body: 'De acuerdo',
+    replyTo: { messageId: id, senderId: id, body: 'Hola' },
+    createdAt: '2026-10-10T12:00:00.000Z',
+  };
+  assert.equal(MessageSchema.safeParse(message).success, true);
+  assert.equal(MessageSchema.safeParse({ ...message, replyTo: { ...message.replyTo, body: 'x'.repeat(4001) } }).success, false);
+  assert.equal(MessageSchema.safeParse({ ...message, replyTo: { messageId: id } }).success, false);
 });
 
 test('contraseñas conservan espacios y no permiten reutilizar la actual', () => {

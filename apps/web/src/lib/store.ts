@@ -1,5 +1,6 @@
 /** Lógica pura del cliente para no perder ni duplicar mensajes. Sin React: testeable. */
 import type { Message } from '@private-chat/contracts';
+import type { ReplySnapshot } from './reply';
 
 export interface PendingMessage {
   clientMessageId: string;
@@ -8,6 +9,7 @@ export interface PendingMessage {
   status: 'pending' | 'failed';
   error?: string;
   photo?: File;
+  replyTo?: ReplySnapshot;
 }
 
 /** Inserta ordenando por sequence y deduplicando por id. */

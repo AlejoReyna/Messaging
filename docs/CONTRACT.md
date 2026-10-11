@@ -1,4 +1,4 @@
-# Contrato común v3
+# Contrato común v4
 
 ## Producto
 
@@ -104,3 +104,7 @@ Los stickers de Chiikawa usan el envío de texto existente: el body contiene el 
 Ambas cuentas pueden enviar una foto por mensaje desde el icono de imagen del compositor, con vista previa local y texto opcional. JPEG/PNG/WebP hasta 5 MiB; nunca subir antes de pulsar Enviar. Sharp verifica bytes, limita a 16 millones de píxeles, orienta, reduce a 2048 px por lado y reexporta WebP sin EXIF. `Message.photoUrl` es opcional y sólo acepta `/api/messages/:id/photo`; sin texto se usa `📷 Foto`. Las fotos se amplían al pulsarlas.
 
 Los bytes y su SHA-256 se guardan en columnas privadas de la misma fila PostgreSQL, nunca en DTO, logs ni el journal. Historial y eventos sólo contienen la URL autenticada. Misma transacción, versión, secuencia e idempotencia que texto: repetición compara texto y hash de imagen; cambiar foto o tipo con la misma clave da 409. Borrar mensaje/vaciar elimina también sus bytes, incluido al reconciliar un respaldo con el journal. Descarga privada sin caché; sesiones revocadas no acceden. Pendientes con foto sólo viven en memoria y se reintentan manualmente con la misma clave.
+
+## Respuestas citadas (v4)
+
+Cualquier cuenta puede responder a un mensaje con el botón Responder de la burbuja: el compositor muestra la cita (autor y fragmento) con opción de cancelarla, y el envío la adjunta como texto, sticker o foto. Sin nuevos endpoints ni eventos: `SendMessageInput.replyToMessageId` (UUID opcional, también como campo multipart en fotos) y `Message.replyTo` con la cita congelada `{messageId, senderId, body, photoUrl?}`. El servidor valida el original dentro de la misma transacción: inexistente da 404 `MESSAGE_NOT_FOUND`, borrado da 410 `MESSAGE_DELETED`; otra cita con la misma clave de idempotencia da 409. La cita viaja autocontenida en historial y `message:created` para mostrarse sin rondas extra; si el original se borra después, la cita se omite y la respuesta conserva su texto. Borrar una respuesta o su original sigue el flujo de borrado existente; las respuestas no reviven originales borrados. Tocar la cita desplaza al original si está cargado.

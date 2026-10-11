@@ -75,7 +75,35 @@ function cookieFlags(isProd: boolean): { httpOnly: true; secure: boolean; sameSi
 }
 
 const messageSelect = { id: true, clientMessageId: true, senderId: true, sequence: true,
-  body: true, createdAt: true, photoHash: true } as const;
+  body: true, createdAt: true, photoHash: true, replyToMessageId: true } as const;
+
+type ReplyTarget = { id: string; senderId: string; body: string; photoHash: string | null };
+const replyTargetSelect = { id: true, senderId: true, body: true, photoHash: true } as const;
+
+function replySnapshot(target: ReplyTarget): NonNullable<Message["replyTo"]> {
+  return {
+    messageId: target.id,
+    senderId: target.senderId,
+    body: target.body,
+    ...(target.photoHash ? { photoUrl: `/api/messages/${target.id}/photo` } : {}),
+  };
+}
+
+// La cita viaja autocontenida en el DTO para que el historial la muestre sin
+// rondas extra; si el original se borró después, la cita se omite y el mensaje
+// conserva su texto. Nunca incluye bytes, sólo la URL privada existente.
+async function fetchReplyTargets(
+  client: Pick<PrismaClient, "message">,
+  ids: string[],
+): Promise<Map<string, ReplyTarget>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const targets = await client.message.findMany({
+    where: { id: { in: unique } },
+    select: replyTargetSelect,
+  });
+  return new Map(targets.map((t) => [t.id, t]));
+}
 
 function serializeMessage(row: {
   id: string;
@@ -85,7 +113,9 @@ function serializeMessage(row: {
   body: string;
   createdAt: Date;
   photoHash?: string | null;
-}): Message {
+  replyToMessageId?: string | null;
+}, replies?: Map<string, ReplyTarget>): Message {
+  const target = row.replyToMessageId ? replies?.get(row.replyToMessageId) : undefined;
   return {
     id: row.id,
     clientMessageId: row.clientMessageId,
@@ -94,6 +124,7 @@ function serializeMessage(row: {
     body: row.body,
     createdAt: row.createdAt.toISOString(),
     ...(row.photoHash ? { photoUrl: `/api/messages/${row.id}/photo` } : {}),
+    ...(target ? { replyTo: replySnapshot(target) } : {}),
   };
 }
 
@@ -693,6 +724,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       sequence: number;
       body: string;
       createdAt: Date;
+      photoHash: string | null;
+      replyToMessageId: string | null;
     }>;
     let hasMore = false;
     let nextCursor: number | null = null;
@@ -721,12 +754,18 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     }
 
     return reply.send({
-      messages: rows.map(serializeMessage),
+      messages: await withReplies(rows),
       hasMore,
       nextCursor,
       conversationVersion: conversation.version,
     });
   });
+
+  async function withReplies<T extends Parameters<typeof serializeMessage>[0]>(rows: T[]) {
+    const replies = await fetchReplyTargets(db,
+      rows.map((r) => r.replyToMessageId).filter((v): v is string => !!v));
+    return rows.map((r) => serializeMessage(r, replies));
+  }
 
   app.post("/api/messages", async (request, reply) => {
     const error = await guard(request, { auth: true, csrf: true });
@@ -756,7 +795,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
           photo = await part.toBuffer();
           if (part.file.truncated) throw new Error("INVALID_IMAGE");
         } else {
-          if (!["body", "clientMessageId", "conversationVersion"].includes(part.fieldname) ||
+          if (!["body", "clientMessageId", "conversationVersion", "replyToMessageId"].includes(part.fieldname) ||
             part.fieldname in fields || typeof part.value !== "string" || part.valueTruncated) {
             throw new Error("INVALID_FIELDS");
           }
@@ -787,9 +826,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   });
 
   async function persistMessage(userId: string, input: SendMessageInput, reply: FastifyReply, photo?: Buffer) {
-    const { clientMessageId, body, conversationVersion } = input;
+    const { clientMessageId, body, conversationVersion, replyToMessageId } = input;
 
     const photoHash = photo ? createHash("sha256").update(photo).digest("hex") : null;
+    const sameReply = (value: string | null | undefined): boolean =>
+      (value ?? null) === (replyToMessageId ?? null);
 
     const send = async (): Promise<{ message: Message; created: boolean }> =>
       db.$transaction(async (tx) => {
@@ -802,16 +843,35 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
           select: messageSelect,
         });
         if (existing) {
-          if (existing.body !== body || existing.photoHash !== photoHash) {
+          if (existing.body !== body || existing.photoHash !== photoHash || !sameReply(existing.replyToMessageId)) {
             throw Object.assign(new Error("IDEMPOTENCY_CONFLICT"), { code: "IDEMPOTENCY_CONFLICT" });
           }
-          return { message: serializeMessage(existing), created: false };
+          const replies = await fetchReplyTargets(tx,
+            existing.replyToMessageId ? [existing.replyToMessageId] : []);
+          return { message: serializeMessage(existing, replies), created: false };
         }
         const tombstone = await tx.messageTombstone.findUnique({
           where: { senderId_clientMessageId: { senderId: userId, clientMessageId } },
         });
         if (tombstone) {
           throw Object.assign(new Error("MESSAGE_DELETED"), { code: "MESSAGE_DELETED" });
+        }
+        // La cita se valida y congela dentro de la misma transacción: el
+        // original debe existir; si se borró, 410; si nunca existió, 404.
+        let target: ReplyTarget | undefined;
+        if (replyToMessageId) {
+          const found = await tx.message.findUnique({
+            where: { id: replyToMessageId },
+            select: replyTargetSelect,
+          });
+          if (!found) {
+            const gone = await tx.messageTombstone.findUnique({ where: { messageId: replyToMessageId } });
+            throw Object.assign(
+              new Error(gone ? "MESSAGE_DELETED" : "MESSAGE_NOT_FOUND"),
+              { code: gone ? "MESSAGE_DELETED" : "MESSAGE_NOT_FOUND" },
+            );
+          }
+          target = found;
         }
         const nextSequence = conv.lastSequence + 1;
         const created = await tx.message.create({
@@ -823,11 +883,13 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
             sequence: nextSequence,
             body,
             ...(photo ? { photoData: new Uint8Array(photo), photoHash } : {}),
+            ...(replyToMessageId ? { replyToMessageId } : {}),
           },
           select: messageSelect,
         });
         await tx.conversation.update({ where: { id: 1 }, data: { lastSequence: nextSequence } });
-        return { message: serializeMessage(created), created: true };
+        const replies = target ? new Map([[target.id, target]]) : new Map<string, ReplyTarget>();
+        return { message: serializeMessage(created, replies), created: true };
       });
 
     try {
@@ -843,8 +905,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
           select: messageSelect,
         });
         if (existing) {
-          if (existing.body !== body || existing.photoHash !== photoHash) return fail(reply, ERRORS.idempotencyConflict());
-          return reply.status(200).send({ message: serializeMessage(existing) });
+          if (existing.body !== body || existing.photoHash !== photoHash || !sameReply(existing.replyToMessageId)) return fail(reply, ERRORS.idempotencyConflict());
+          const replies = await fetchReplyTargets(db,
+            existing.replyToMessageId ? [existing.replyToMessageId] : []);
+          return reply.status(200).send({ message: serializeMessage(existing, replies) });
         }
         const tombstone = await db.messageTombstone.findUnique({
           where: { senderId_clientMessageId: { senderId: userId, clientMessageId } },
@@ -855,6 +919,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       if (code === "CONVERSATION_CHANGED") return fail(reply, ERRORS.conversationChanged());
       if (code === "IDEMPOTENCY_CONFLICT") return fail(reply, ERRORS.idempotencyConflict());
       if (code === "MESSAGE_DELETED") return fail(reply, ERRORS.messageDeleted());
+      if (code === "MESSAGE_NOT_FOUND") return fail(reply, ERRORS.messageNotFound());
       if (code === "NOT_PROVISIONED") return fail(reply, ERRORS.unavailable());
       throw e;
     }

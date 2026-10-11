@@ -23,8 +23,12 @@ import {
   type PendingMessage,
 } from '../lib/store';
 import { useChatSocket } from './useSocket';
+import { snapshotOf } from '../lib/reply';
 
 export interface ReadEntry { lastReadSequence: number; readAt: string | null; }
+
+/** Cita elegida en el compositor: mensaje original y autor ya resuelto. */
+export interface ReplyTarget { message: Message; author: string; }
 
 interface ChatApi {
   messages: Message[];
@@ -40,8 +44,8 @@ interface ChatApi {
   partnerOnline: boolean | null;
   readByPartner: number;
   myRead: number;
-  send: (body: string) => Promise<void>;
-  sendPhoto: (file: File, caption: string) => Promise<void>;
+  send: (body: string, replyTo?: ReplyTarget | null) => Promise<void>;
+  sendPhoto: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void>;
   retry: (clientMessageId: string) => Promise<void>;
   discardPending: (clientMessageId: string) => void;
   loadMore: () => Promise<void>;
@@ -334,7 +338,7 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     } catch { /* sin conexión: se ignora */ }
   }, []);
 
-  const sendContent = useCallback(async (raw: string, photo?: File) => {
+  const sendContent = useCallback(async (raw: string, photo?: File, replyTo?: ReplyTarget | null) => {
     const body = raw.trim() || (photo ? PHOTO_MESSAGE_BODY : '');
     if (!body || !me) return;
     if (body.length > 4000) {
@@ -343,10 +347,14 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     }
     const clientMessageId = uuid();
     const v = versionRef.current;
-    setPending((prev) => [...prev, { clientMessageId, body, conversationVersion: v, status: 'pending', photo }]);
+    const replySnapshot = replyTo ? snapshotOf(replyTo.message, replyTo.author) : undefined;
+    setPending((prev) => [...prev, { clientMessageId, body, conversationVersion: v, status: 'pending', photo, ...(replySnapshot ? { replyTo: replySnapshot } : {}) }]);
     try {
       const input = { clientMessageId, body, conversationVersion: v };
-      const { message } = await (photo ? apiSendPhoto(photo, input, csrfToken) : apiSendMessage(input, csrfToken));
+      const replyId = replyTo?.message.id;
+      const { message } = await (photo
+        ? apiSendPhoto(photo, input, csrfToken, replyId)
+        : apiSendMessage(input, csrfToken, replyId));
       setMessages((prev) => dedupeCreated(prev, { message }));
       if (message.sequence > lastSeqRef.current) lastSeqRef.current = message.sequence;
       setPending((prev) => dropPendingFor(prev, clientMessageId));
@@ -379,8 +387,8 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     }
   }, [me, csrfToken, catchUp, fullReload, fail]);
 
-  const send = useCallback((body: string) => sendContent(body), [sendContent]);
-  const sendPhoto = useCallback((file: File, caption: string) => sendContent(caption, file), [sendContent]);
+  const send = useCallback((body: string, replyTo?: ReplyTarget | null) => sendContent(body, undefined, replyTo), [sendContent]);
+  const sendPhoto = useCallback((file: File, caption: string, replyTo?: ReplyTarget | null) => sendContent(caption, file, replyTo), [sendContent]);
 
   const retry = useCallback(async (clientMessageId: string) => {
     const item = pending.find((p) => p.clientMessageId === clientMessageId);
@@ -394,7 +402,10 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     setPending((prev) => prev.map((p) => (p.clientMessageId === clientMessageId ? { ...p, status: 'pending' as const, error: undefined } : p)));
     try {
       const input = { clientMessageId: item.clientMessageId, body: item.body, conversationVersion: versionRef.current };
-      const { message } = await (item.photo ? apiSendPhoto(item.photo, input, csrfToken) : apiSendMessage(input, csrfToken));
+      const replyId = item.replyTo?.messageId;
+      const { message } = await (item.photo
+        ? apiSendPhoto(item.photo, input, csrfToken, replyId)
+        : apiSendMessage(input, csrfToken, replyId));
       setMessages((prev) => dedupeCreated(prev, { message }));
       if (message.sequence > lastSeqRef.current) lastSeqRef.current = message.sequence;
       setPending((prev) => dropPendingFor(prev, clientMessageId));

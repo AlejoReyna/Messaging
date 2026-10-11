@@ -108,3 +108,11 @@ Petición del usuario: carita UwU en lineart al centro del historial vacío, ton
 - CI `38120037620` en verde (node24 + postgres18); Deploy `38120125887` en verde: pull, build api/web/bootstrap, bootstrap (migración 0003 fotos), up, `/api/ready` OK, Caddy intacto.
 - Verificación pública: web 200 con bundle nuevo (40 marcadores chiikawa, PNG servido 200), `/api/ready` 200, historial y foto anónimos 401, `api` healthy recién recreado, `postgres` intacto (2 h activo, sin pérdida de datos). VPS en `89d4de1` limpio.
 - Nota: el deploy manual por rsync quedó descartado a favor del flujo CI/CD; las imágenes locales del build manual fueron reemplazadas por las del CD.
+
+## Respuestas citadas — 2026-10-11
+
+- Petición del usuario: responder mensajes con cita, con push al terminar.
+- Contrato v4 (`docs/CONTRACT.md`, `packages/contracts`): `SendMessageInput.replyToMessageId` opcional (también multipart en fotos) y `Message.replyTo` con cita congelada `{messageId, senderId, body, photoUrl?}`. Sin endpoints ni eventos nuevos.
+- Backend: `apps/api/prisma/schema.prisma` + migración `0004_message_replies` (`reply_to_message_id` + índice, sin FK para no perder la respuesta si el original se borra). `persistMessage` valida el original en la misma transacción (inexistente 404, borrado 410) e incluye la cita en idempotencia (otra cita con la misma clave da 409). Historial resuelve citas en lote; si el original se borró después, la cita se omite. Pruebas `apps/api/test/integration/replies.test.ts`: 4/4 (snapshot por socket e historial, 404/410/malformada, supervivencia al borrado sin resurrección, 409 y foto citando texto).
+- Frontend: botón Responder en cada burbuja (táctil visible), cita en el compositor con autor/fragmento y cancelación, cita en burbujas y pendientes, tocar la cita desplaza al original con resaltado. `useChat.send/sendPhoto` aceptan `{message, author}`; reintentos conservan la cita. Pruebas `apps/web/src/components/replies.test.tsx` + `lib/reply.ts`: 4/4; se actualizaron 4 aserciones existentes por el parámetro nuevo.
+- `npm run verify:local`: 163/163 (contratos 7, base 6, api unit 25, web 69 en 11 archivos, API PostgreSQL 53, runtime 3); tipos, builds y `npm audit --omit=dev` sin vulnerabilidades.

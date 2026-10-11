@@ -48,7 +48,7 @@ describe('stickers de Chiikawa', () => {
     fireEvent.load(screen.getByRole('img', { name: `Listo para enviar: ${sticker.label}` }));
     fireEvent.click(screen.getByRole('button', { name: 'Enviar mensaje' }));
     await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled());
-    expect(onSend).toHaveBeenCalledExactlyOnceWith(sticker.body);
+    expect(onSend).toHaveBeenCalledExactlyOnceWith(sticker.body, null);
     expect(onSendPhoto).not.toHaveBeenCalled();
     expect(screen.getByRole('textbox')).toHaveValue('Después te escribo');
   });
@@ -68,20 +68,20 @@ describe('stickers de Chiikawa', () => {
 
   it('muestra el sticker, lectura y borrado propio; mantiene texto desconocido y fotos', () => {
     const onDelete = vi.fn();
-    const view = render(<MessageBubble message={message} mine read isAdmin={false} onDelete={onDelete} />);
+    const view = render(<MessageBubble message={message} mine read isAdmin={false} onDelete={onDelete} onReply={vi.fn()} />);
     expect(screen.getByRole('img', { name: `Sticker: ${sticker.label}` })).toHaveAttribute('src', sticker.src);
     expect(screen.getByText('Leído')).toBeInTheDocument();
     expect(screen.queryByText(sticker.body)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Borrar mensaje/ }));
     expect(onDelete).toHaveBeenCalledWith(message.id);
-    view.rerender(<MessageBubble message={message} mine={false} read={false} isAdmin={false} onDelete={onDelete} />);
+    view.rerender(<MessageBubble message={message} mine={false} read={false} isAdmin={false} onDelete={onDelete} onReply={vi.fn()} />);
     expect(screen.queryByRole('button', { name: /^Borrar mensaje/ })).not.toBeInTheDocument();
     for (const body of ['[sticker:chiikawa:unknown]', `Texto ${sticker.body}`, `${sticker.body} final`]) {
-      view.rerender(<MessageBubble message={{ ...message, body }} mine={false} read={false} isAdmin={false} onDelete={onDelete} />);
+      view.rerender(<MessageBubble message={{ ...message, body }} mine={false} read={false} isAdmin={false} onDelete={onDelete} onReply={vi.fn()} />);
       expect(screen.getByText(body)).toBeInTheDocument();
       expect(screen.queryByRole('img')).not.toBeInTheDocument();
     }
-    view.rerender(<MessageBubble message={{ ...message, photoUrl: `/api/messages/${message.id}/photo` }} mine read={false} isAdmin={false} onDelete={onDelete} />);
+    view.rerender(<MessageBubble message={{ ...message, photoUrl: `/api/messages/${message.id}/photo` }} mine read={false} isAdmin={false} onDelete={onDelete} onReply={vi.fn()} />);
     expect(screen.getByRole('img', { name: 'Foto enviada' })).toBeInTheDocument();
     expect(screen.getByText(sticker.body)).toBeInTheDocument();
   });
