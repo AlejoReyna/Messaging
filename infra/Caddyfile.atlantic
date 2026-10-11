@@ -1,0 +1,26 @@
+# Site block for the already-running Atlantic.net Caddy proxy.
+# Append this block to /opt/artisanalbrew/Caddyfile; do not replace that file.
+marthi.alexisrs.dev {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        X-Frame-Options "DENY"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self' wss://marthi.alexisrs.dev; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    }
+
+    @api path /api /api/* /socket.io /socket.io/*
+    handle @api {
+        request_body {
+            max_size 6MB
+        }
+        reverse_proxy private-chat-api:3000
+    }
+
+    handle {
+        reverse_proxy private-chat-web:8080
+    }
+}

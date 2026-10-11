@@ -1,0 +1,27 @@
+# Overlay para integrar el chat con el Caddy ya activo en Atlantic.net.
+# No publica puertos del host ni altera el proyecto ArtisanalBrew.
+services:
+  api:
+    networks:
+      edge: {}
+      database: {}
+      caddy:
+        aliases:
+          - private-chat-api
+
+  web:
+    ports: !reset []
+    expose:
+      - "8080"
+    volumes:
+      - ./infra/Caddyfile.internal:/etc/caddy/Caddyfile:ro
+    networks:
+      edge: {}
+      caddy:
+        aliases:
+          - private-chat-web
+
+networks:
+  caddy:
+    external: true
+    name: ${ATLANTIC_CADDY_NETWORK:-artisanalbrew_default}
