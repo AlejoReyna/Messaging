@@ -112,6 +112,7 @@ body {
 
 @media (hover: none) {
   .name-edit-icon { opacity: 1; }
+  .message-delete-button { opacity: 1; min-width: 44px; min-height: 44px; }
 }
 
 /* Movimiento tipo WhatsApp: sólo transform + opacidad (60fps, sin layout thrash). */

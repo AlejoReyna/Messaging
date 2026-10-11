@@ -3,6 +3,9 @@ import {
   avatarSrc,
   friendlyErrorMessage,
   getMessages,
+  login,
+  pinLogin,
+  pinSetup,
   sendMessage,
   validateAvatarFile,
 } from './api';
@@ -59,6 +62,28 @@ describe('avatarSrc (URLs privadas de la API)', () => {
 });
 
 describe('contrato HTTP del cliente', () => {
+  it('explica el rechazo según sea respuesta secreta, PIN o contraseña', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ error: { code: 'INVALID_CREDENTIALS', message: 'Credenciales no válidas' } }),
+      { status: 401 },
+    )));
+    await expect(pinSetup({ answer: 'respuesta-de-prueba', pin: '1234' }, 'csrf'))
+      .rejects.toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS', message: expect.stringMatching(/respuesta.*no es correcta/i) });
+    await expect(pinLogin({ pin: '1234' }, 'csrf'))
+      .rejects.toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS', message: 'Código incorrecto. Inténtalo de nuevo.' });
+    await expect(login({ username: 'admin', password: 'password-de-prueba' }, 'csrf'))
+      .rejects.toMatchObject({ status: 401, code: 'INVALID_CREDENTIALS', message: 'Usuario o contraseña incorrectos.' });
+  });
+
+  it('explica un alta ya completada sin confundirla con un mensaje de chat', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ error: { code: 'IDEMPOTENCY_CONFLICT', message: 'Conflicto' } }),
+      { status: 409 },
+    )));
+    await expect(pinSetup({ answer: 'respuesta-de-prueba', pin: '1234' }, 'csrf'))
+      .rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_CONFLICT', message: expect.stringMatching(/código.*ya fue creado/i) });
+  });
+
   it('sendMessage distingue 201 nuevo de 200 repetición idéntica', async () => {
     const body = {
       message: {

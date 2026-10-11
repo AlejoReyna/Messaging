@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Eraser, Github, Settings, Volume2, VolumeX, WifiOff } from 'lucide-react';
 import type { Message, PublicUser } from '@private-chat/contracts';
 import type { PendingMessage } from '../lib/store';
 import { playHalo, useSoundEnabled } from '../lib/sound';
 import { formatDay } from '../lib/format';
 import { AvatarView } from './AvatarView';
+import { AvatarPreview } from './AvatarPreview';
 import { Composer } from './Composer';
 import { MessageBubble, PendingBubble } from './MessageBubble';
 
@@ -17,7 +18,7 @@ export function ChatPanel({
   me, partner, messages, pending, loading, loadingMore, hasMore, loadError,
   connected, partnerTyping, partnerOnline, readByPartner,
   notice, showSidebarToggle, onOpenSettings, onLoadMore, onReload,
-  onSend, onRetry, onDiscardPending, onTyping, onDeleteMessage, onClear, isAdmin, clearArmed,
+  onSend, onSendPhoto, onRetry, onDiscardPending, onTyping, onDeleteMessage, onClear, isAdmin, clearArmed,
 }: {
   me: PublicUser;
   partner: PublicUser | null;
@@ -37,6 +38,7 @@ export function ChatPanel({
   onLoadMore: () => Promise<void>;
   onReload: () => void;
   onSend: (body: string) => Promise<void>;
+  onSendPhoto?: (file: File, caption: string) => Promise<void>;
   onRetry: (id: string) => Promise<void>;
   onDiscardPending: (id: string) => void;
   onTyping: (t: boolean) => void;
@@ -45,6 +47,7 @@ export function ChatPanel({
   isAdmin: boolean;
   clearArmed: boolean;
 }) {
+  const [partnerAvatarOpen, setPartnerAvatarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const prevCount = useRef(0);
@@ -145,7 +148,9 @@ export function ChatPanel({
         )}
         {partner ? (
           <>
-            <span className="relative">
+            <button type="button" onClick={() => setPartnerAvatarOpen(true)}
+              aria-label={`Ver foto de perfil de ${partner.displayName}`} title="Ver foto de perfil"
+              className="relative shrink-0 rounded-full transition hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">
               <AvatarView user={partner} size={44} ring />
               <span
                 aria-hidden="true"
@@ -155,7 +160,7 @@ export function ChatPanel({
                   partnerOnline ? 'bg-success' : 'bg-line'
                 }`}
               />
-            </span>
+            </button>
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-[17px] font-bold leading-tight">{partner.displayName}</h2>
               <p
@@ -323,6 +328,7 @@ export function ChatPanel({
               <PendingBubble
                 key={p.clientMessageId}
                 body={p.body}
+                photo={p.photo}
                 failed={p.status === 'failed'}
                 error={p.error}
                 onRetry={() => void onRetry(p.clientMessageId)}
@@ -345,8 +351,9 @@ export function ChatPanel({
 
       {/* Entrada */}
       <footer className="chat-footer shrink-0 border-t border-line/70 bg-surface px-4 pb-4 pt-4 sm:px-6 sm:pb-5">
-        <Composer onSend={onSend} onTyping={onTyping} disabled={loading || !!loadError} />
+        <Composer onSendPhoto={onSendPhoto} onSend={onSend} onTyping={onTyping} disabled={loading || !!loadError} />
       </footer>
+      {partnerAvatarOpen && partner && <AvatarPreview user={partner} onClose={() => setPartnerAvatarOpen(false)} />}
     </section>
   );
 }

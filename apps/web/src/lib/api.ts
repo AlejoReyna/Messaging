@@ -53,20 +53,20 @@ export function friendlyErrorMessage(code: string, fallback: string): string {
     case 'PIN_REQUIRED': return 'Esta cuenta usa código de 4 dígitos.';
     case 'PASSWORD_CHANGE_REQUIRED': return 'Debes cambiar tu contraseña antes de continuar.';
     case 'CONVERSATION_CHANGED': return 'La conversación cambió. Se recargó el historial.';
-    case 'IDEMPOTENCY_CONFLICT': return 'Ese mensaje ya se había enviado con otro texto.';
+    case 'IDEMPOTENCY_CONFLICT': return 'Ese mensaje ya se había enviado con otro contenido.';
     case 'USERNAME_TAKEN': return 'Ese nombre de usuario ya está en uso.';
     case 'VALIDATION_ERROR': return fallback || 'Revisa los datos ingresados.';
     case 'UNAUTHENTICATED': return 'Tu sesión expiró. Inicia sesión de nuevo.';
     case 'FORBIDDEN': return 'No tienes permiso para hacer eso.';
     case 'RATE_LIMITED': return 'Demasiados intentos. Espera un momento e inténtalo de nuevo.';
-    case 'UPLOAD_INVALID': return 'Avatar no válido. Usa JPEG, PNG o WebP de hasta 5 MiB.';
+    case 'UPLOAD_INVALID': return 'Imagen no válida. Usa JPEG, PNG o WebP de hasta 5 MiB.';
     case 'MESSAGE_NOT_FOUND': return 'Ese mensaje ya no existe.';
     case 'SERVICE_UNAVAILABLE': return 'El servicio no está disponible. Inténtalo más tarde.';
     default: return fallback || 'Ocurrió un error. Inténtalo de nuevo.';
   }
 }
 
-async function parseFailure(res: Response): Promise<never> {
+async function parseFailure(res: Response, messages: Record<string, string> = {}): Promise<never> {
   let code = 'INTERNAL_ERROR';
   let message = `Error ${res.status}`;
   try {
@@ -84,11 +84,11 @@ async function parseFailure(res: Response): Promise<never> {
   } catch {
     message = res.statusText ? `Error ${res.status}: ${res.statusText}` : `Error ${res.status}`;
   }
-  throw toApiFailure(res.status, code, friendlyErrorMessage(code, message));
+  throw toApiFailure(res.status, code, messages[code] ?? friendlyErrorMessage(code, message));
 }
 
-async function json<T>(res: Response, parse: (v: unknown) => T): Promise<T> {
-  if (!res.ok) await parseFailure(res);
+async function json<T>(res: Response, parse: (v: unknown) => T, messages?: Record<string, string>): Promise<T> {
+  if (!res.ok) await parseFailure(res, messages);
   const data: unknown = res.status === 204 ? {} : await res.json();
   return parse(data);
 }
@@ -170,7 +170,10 @@ export async function pinSetup(input: PinSetupInput, csrfToken: string): Promise
     headers: headers(csrfToken, { 'Content-Type': 'application/json' }),
     body: JSON.stringify(parsed),
   });
-  return json(res, (v) => SessionResponseSchema.parse(v));
+  return json(res, (v) => SessionResponseSchema.parse(v), {
+    INVALID_CREDENTIALS: 'La respuesta a la pregunta no es correcta. Revísala e inténtalo de nuevo.',
+    IDEMPOTENCY_CONFLICT: 'El código de invitado ya fue creado. Ingresa con ese código.',
+  });
 }
 
 /** Entrada con código de 4 dígitos (el servidor decide la cuenta). */
@@ -182,7 +185,9 @@ export async function pinLogin(input: PinLoginInput, csrfToken: string): Promise
     headers: headers(csrfToken, { 'Content-Type': 'application/json' }),
     body: JSON.stringify(parsed),
   });
-  return json(res, (v) => SessionResponseSchema.parse(v));
+  return json(res, (v) => SessionResponseSchema.parse(v), {
+    INVALID_CREDENTIALS: 'Código incorrecto. Inténtalo de nuevo.',
+  });
 }
 
 export async function updateProfile(input: UpdateProfileInput, csrfToken: string): Promise<PublicUser> {
@@ -268,6 +273,22 @@ export async function sendMessage(input: SendMessageInput, csrfToken: string): P
   const parsed = MessageSchema.safeParse((data as { message?: unknown })?.message);
   if (!parsed.success) throw toApiFailure(res.status, 'INTERNAL_ERROR', 'Respuesta no válida del servidor.');
   return { message: parsed.data, repeated: res.status === 200 };
+}
+
+export async function sendPhoto(file: File, input: SendMessageInput, csrfToken: string): Promise<{ message: Message; repeated: boolean }> {
+  const problem = validateAvatarFile(file);
+  if (problem) throw toApiFailure(400, 'UPLOAD_INVALID', problem);
+  const form = new FormData();
+  form.append('clientMessageId', input.clientMessageId);
+  form.append('conversationVersion', String(input.conversationVersion));
+  form.append('body', input.body);
+  form.append('photo', file, 'photo');
+  const res = await fetch(API_ROUTES.sendPhoto, {
+    method: 'POST', credentials: 'include', headers: headers(csrfToken), body: form,
+  });
+  if (!res.ok) await parseFailure(res);
+  const data = await res.json() as { message: unknown };
+  return { message: MessageSchema.parse(data.message), repeated: res.status === 200 };
 }
 
 export async function markRead(input: MarkReadInput, csrfToken: string): Promise<{ userId: string; lastReadSequence: number; readAt: string }> {

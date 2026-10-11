@@ -1,27 +1,36 @@
 # Instalación en Atlantic.net
 
-Aplicar después de integrar ambos componentes y aprobar pruebas PostgreSQL. Estos comandos son la receta preparada; no se han ejecutado en un VPS. El usuario proporciona cuenta de Atlantic.net, servidor Linux, dominio y acceso SSH. No se insertan credenciales en este documento.
+Aplicar después de integrar ambos componentes y aprobar pruebas PostgreSQL. El despliegue completo aún requiere verificar el flujo real de ambos usuarios en el VPS. No se insertan credenciales en este documento.
 
 ## Preparación
 
 Un VPS Ubuntu LTS con Docker Engine y Compose v2, DNS A/AAAA del dominio apuntando al servidor, SSH por claves y firewall. Permitir 80/443; SSH restringido a la administración. Los puertos 3000/5432 no se publican en producción. Verificar también reglas de Docker: no confiar sólo en UFW si posteriormente se añaden ports.
 
-El usuario eligió el VPS compartido `ArtisanalBrew` y pidió conservar sus otros despliegues. El Compose actual del chat publica 80/443: antes de ejecutar los comandos siguientes en ese servidor, inspeccionar los servicios reales y adaptar la entrada del chat al proxy existente, con recursos independientes. Consultar [el estado del acceso y la compatibilidad](ATLANTIC-ACCESS.md). No detener ni reemplazar el proxy activo para liberar esos puertos.
+El usuario eligió el VPS compartido `ArtisanalBrew` y pidió conservar sus otros despliegues. El Compose base del chat publica 80/443; en ese VPS se debe usar el overlay `compose.atlantic.yaml`, que quita esos puertos y conecta sólo API/web a la red ya usada por Caddy. El nombre predeterminado es `artisanalbrew_default`; si el proxy usa otra red, establecer `ATLANTIC_CADDY_NETWORK`. Consultar [el estado del acceso y la compatibilidad](ATLANTIC-ACCESS.md). No detener ni reemplazar el proxy activo para liberar esos puertos.
 
 Subir/obtener este repositorio, instalar Node 24/npm 11 si se usarán los helpers en el host y copiar `.env.example` a `.env`. Cambiar DOMAIN al dominio real y elegir usernames iniciales distintos. `.env` no contiene secretos.
 
+Para `ArtisanalBrew`, usar estos comandos desde `/opt/private-chat`:
+
 ```sh
-npm ci --cache .npm-cache
-npm run secrets:init
-docker compose --profile tools config --quiet
-docker compose --profile tools build api web bootstrap
-docker compose up -d postgres storage-init
-docker compose --profile tools run --rm bootstrap
-docker compose up -d api web
-docker compose ps
+docker compose -f compose.yaml -f compose.atlantic.yaml --profile tools config --quiet
+docker compose -f compose.yaml -f compose.atlantic.yaml --profile tools build api web bootstrap
+docker compose -f compose.yaml -f compose.atlantic.yaml up -d postgres storage-init
+docker compose -f compose.yaml -f compose.atlantic.yaml --profile tools run --rm bootstrap
+docker compose -f compose.yaml -f compose.atlantic.yaml up -d api web
+docker compose -f compose.yaml -f compose.atlantic.yaml ps
 ```
 
-Bootstrap ejecuta migraciones, provisión de dos cuentas y permisos del runtime, en ese orden. Las contraseñas iniciales se introducen mediante entrada oculta. Repetir no modifica cuentas existentes. Nunca poner contraseñas en argumentos, archivos versionados ni chats. Verificar login de ambas cuentas, cambio inicial obligatorio, mensajes, perfiles y denegación de borrado para el miembro.
+Después de confirmar que API/web están saludables, agregar el bloque de `infra/Caddyfile.atlantic` al archivo existente `/opt/artisanalbrew/Caddyfile`; no reemplazarlo. Validar y recargar sólo la configuración del proxy, sin reiniciar el contenedor:
+
+```sh
+docker exec artisanalbrew-caddy-1 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+docker exec artisanalbrew-caddy-1 caddy reload --config /etc/caddy/Caddyfile
+```
+
+El overlay no publica puertos del chat en el host; el tráfico público entra por el Caddy existente y usa TLS automático para el dominio configurado.
+
+Bootstrap ejecuta migraciones, provisión de dos cuentas y permisos del runtime, en ese orden. Las contraseñas iniciales se introducen mediante entrada oculta. Repetir no modifica cuentas existentes. Nunca poner contraseñas en argumentos, archivos versionados ni chats. Verificar login de ambas cuentas, cambio inicial obligatorio, mensajes, perfiles y borrado de mensajes propios por el invitado y denegación de borrado de mensajes ajenos/vaciado para el miembro.
 
 `.secrets` es 0700. Los archivos montados son 0444 para que el usuario no-root del contenedor pueda leerlos; la carpeta privada del host impide acceso a otros usuarios. Sólo los servicios autorizados reciben cada archivo. El API no recibe la contraseña propietaria. Compose secrets son archivos montados, no una bóveda que cifre archivos del host: proteger el disco/VPS y conservar una copia segura externa de claves de recuperación.
 

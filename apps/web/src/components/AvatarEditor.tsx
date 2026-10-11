@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { ImagePlus } from 'lucide-react';
 import type { PublicUser } from '@private-chat/contracts';
 import { avatarSrc, uploadAvatar, validateAvatarFile } from '../lib/api';
+import { AvatarLightbox } from './AvatarLightbox';
 
 export function AvatarEditor({ me, csrfToken, onSaved, onClose }: {
   me: PublicUser;
@@ -15,8 +16,6 @@ export function AvatarEditor({ me, csrfToken, onSaved, onClose }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!file) { setPreview(null); return; }
@@ -24,12 +23,6 @@ export function AvatarEditor({ me, csrfToken, onSaved, onClose }: {
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    closeRef.current?.focus();
-    return () => previous?.focus();
-  }, []);
 
   function selectFile(next?: File) {
     if (!next || busy) return;
@@ -58,25 +51,7 @@ export function AvatarEditor({ me, csrfToken, onSaved, onClose }: {
   const src = preview ?? avatarSrc(me);
 
   return (
-    <div className="avatar-lightbox fixed inset-0 z-[60] flex flex-col items-center overflow-y-auto px-4 pb-8 pt-16 sm:px-8"
-      onClick={() => { if (!busy) onClose(); }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="avatar-title"
-        className="my-auto flex w-full max-w-xl flex-col items-center gap-5 text-white"
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') { event.stopPropagation(); if (!busy) onClose(); }
-          if (event.key !== 'Tab') return;
-          const elements = dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
-          const first = elements?.[0];
-          const last = elements?.[elements.length - 1];
-          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-        }}>
-        <button ref={closeRef} type="button" disabled={busy} onClick={onClose} aria-label="Cerrar vista previa"
-          className="absolute left-4 top-4 grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-50">
-          <X className="h-6 w-6" strokeWidth={1.5} aria-hidden="true" />
-        </button>
-        <h2 id="avatar-title" className="text-lg font-medium">{file ? 'Vista previa de tu nueva foto' : 'Tu foto de perfil'}</h2>
+    <AvatarLightbox title={file ? 'Vista previa de tu nueva foto' : 'Tu foto de perfil'} onClose={onClose} busy={busy}>
         <div className="avatar-preview grid shrink-0 place-items-center overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
           {src ? (
             <img key={src} src={src} alt={`Foto de perfil de ${me.displayName}`} className="h-full w-full object-cover"
@@ -105,7 +80,6 @@ export function AvatarEditor({ me, csrfToken, onSaved, onClose }: {
           )}
         </div>
         <p className="text-xs text-white/60">JPEG, PNG o WebP · hasta 5 MiB</p>
-      </div>
-    </div>
+    </AvatarLightbox>
   );
 }

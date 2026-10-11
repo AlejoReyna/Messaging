@@ -71,6 +71,8 @@ model Message {
   clientMessageId String       @map("client_message_id") @db.Text
   sequence        Int
   body            String       @db.Text
+  photoData       Bytes?       @map("photo_data")
+  photoHash       String?      @map("photo_hash") @db.Text
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@unique([senderId, clientMessageId])

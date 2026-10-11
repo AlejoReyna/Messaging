@@ -147,8 +147,13 @@ describe("API auth, sesión y perfil (PostgreSQL real)", () => {
     assert.equal(out2.status, 204);
   });
 
-  it("miembro no puede borrar ni cambiar roles", async () => {
-    const del = await member.request("DELETE", `/api/messages/${randomUUID()}`, {
+  it("miembro no puede borrar mensajes ajenos, vaciar ni cambiar roles", async () => {
+    const created = await admin.request("POST", "/api/messages", {
+      body: { clientMessageId: randomUUID(), body: "Mensaje del administrador", conversationVersion: 1 },
+    });
+    assert.equal(created.status, 201);
+    const id = (created.json as { message: { id: string } }).message.id;
+    const del = await member.request("DELETE", `/api/messages/${id}`, {
       body: { conversationVersion: 1 },
     });
     assert.equal(del.status, 403);

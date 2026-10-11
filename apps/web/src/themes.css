@@ -40,6 +40,26 @@
   --color-subtle: var(--color-muted);
 }
 
+[data-theme="cocoa"] {
+  color-scheme: light;
+  --color-canvas: #f2e9df;
+  --color-surface: #fffaf5;
+  --color-surface-muted: #f2e9df;
+  --color-surface-hover: #e9d9ca;
+  --color-line: #d6c2af;
+  --color-ink: #38291f;
+  --color-muted: #765b48;
+  --color-accent: #80543a;
+  --color-accent-hover: #69432f;
+  --color-accent-soft: #ead8c7;
+  --color-on-accent: #fffaf5;
+  --color-success: #3f6b4b;
+  --color-danger: #a83d36;
+  --color-danger-hover: #862f29;
+  --color-on-danger: #fffaf5;
+  --color-subtle: var(--color-muted);
+}
+
 [data-theme="catppuccin-latte"] {
   color-scheme: light;
   --color-canvas: #e6e9ef;

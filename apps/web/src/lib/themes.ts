@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 // Las fuentes oficiales y los ajustes de contraste están en docs/THEMES.md.
 export const THEMES = [
   { id: 'github-light', name: 'GitHub Light', mode: 'Claro' },
+  { id: 'cocoa', name: 'Cocoa', mode: 'Claro' },
   { id: 'github-dark', name: 'GitHub Dark', mode: 'Oscuro' },
   { id: 'catppuccin-latte', name: 'Catppuccin Latte', mode: 'Claro' },
   { id: 'catppuccin-mocha', name: 'Catppuccin Mocha', mode: 'Oscuro' },
@@ -17,20 +18,21 @@ export const THEMES = [
 
 export type ThemeId = typeof THEMES[number]['id'];
 export const DEFAULT_THEME: ThemeId = 'github-light';
+export const MEMBER_DEFAULT_THEME: ThemeId = 'cocoa';
 
 function isTheme(value: string | null): value is ThemeId {
   return THEMES.some((theme) => theme.id === value);
 }
 
-export function useTheme(userId?: string) {
+export function useTheme(userId?: string, preferredDefault: ThemeId = DEFAULT_THEME) {
   const [theme, setTheme] = useState<ThemeId>(DEFAULT_THEME);
   const key = userId ? `private-chat:theme:${userId}` : null;
 
   useEffect(() => {
     let saved: string | null = null;
     try { if (key) saved = window.localStorage.getItem(key); } catch { /* navegador sin almacenamiento */ }
-    setTheme(isTheme(saved) ? saved : DEFAULT_THEME);
-  }, [key]);
+    setTheme(isTheme(saved) ? saved : preferredDefault);
+  }, [key, preferredDefault]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

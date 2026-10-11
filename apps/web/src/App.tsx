@@ -149,12 +149,13 @@ function Shell() {
           onLoadMore={chat.loadMore}
           onReload={chat.reload}
           onSend={chat.send}
+          onSendPhoto={chat.sendPhoto}
           onRetry={chat.retry}
           onDiscardPending={chat.discardPending}
           onTyping={chat.setTyping}
           onDeleteMessage={(id) => {
-            // La cuenta member no ve controles de borrado; doble defensa aquí.
-            if (!isAdmin) return;
+            const target = chat.messages.find((message) => message.id === id);
+            if (!target || (!isAdmin && target.senderId !== me.id)) return;
             setDeleteTarget(id);
           }}
           onClear={() => {
@@ -173,9 +174,9 @@ function Shell() {
 
       {deleteTarget && (
         <ConfirmDialog
-          title="Borrar mensaje"
-          body="Se borrará para ambos y quedará registrado sólo como borrado (sin texto). Esta acción no se puede deshacer."
-          confirmLabel="Borrar"
+          title="Borrar mensaje para ambos"
+          body="Este mensaje desaparecerá de la conversación para ambos. Esta acción no se puede deshacer."
+          confirmLabel="Borrar para ambos"
           busy={actionBusy}
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => void handleDelete()}

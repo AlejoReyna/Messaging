@@ -7,6 +7,7 @@ export interface PendingMessage {
   conversationVersion: number;
   status: 'pending' | 'failed';
   error?: string;
+  photo?: File;
 }
 
 /** Inserta ordenando por sequence y deduplicando por id. */

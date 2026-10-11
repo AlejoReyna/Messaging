@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Message, PublicUser } from '@private-chat/contracts';
+import { PHOTO_MESSAGE_BODY, type Message, type PublicUser } from '@private-chat/contracts';
 import {
   clearConversation,
   deleteMessage as apiDeleteMessage,
@@ -7,6 +7,7 @@ import {
   getMessages,
   markRead as apiMarkRead,
   sendMessage as apiSendMessage,
+  sendPhoto as apiSendPhoto,
   type ApiFailure,
 } from '../lib/api';
 import {
@@ -40,6 +41,7 @@ interface ChatApi {
   readByPartner: number;
   myRead: number;
   send: (body: string) => Promise<void>;
+  sendPhoto: (file: File, caption: string) => Promise<void>;
   retry: (clientMessageId: string) => Promise<void>;
   discardPending: (clientMessageId: string) => void;
   loadMore: () => Promise<void>;
@@ -332,8 +334,8 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     } catch { /* sin conexión: se ignora */ }
   }, []);
 
-  const send = useCallback(async (raw: string) => {
-    const body = raw.trim();
+  const sendContent = useCallback(async (raw: string, photo?: File) => {
+    const body = raw.trim() || (photo ? PHOTO_MESSAGE_BODY : '');
     if (!body || !me) return;
     if (body.length > 4000) {
       setNotice('El mensaje no debe superar 4000 caracteres.');
@@ -341,9 +343,10 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     }
     const clientMessageId = uuid();
     const v = versionRef.current;
-    setPending((prev) => [...prev, { clientMessageId, body, conversationVersion: v, status: 'pending' }]);
+    setPending((prev) => [...prev, { clientMessageId, body, conversationVersion: v, status: 'pending', photo }]);
     try {
-      const { message } = await apiSendMessage({ clientMessageId, body, conversationVersion: v }, csrfToken);
+      const input = { clientMessageId, body, conversationVersion: v };
+      const { message } = await (photo ? apiSendPhoto(photo, input, csrfToken) : apiSendMessage(input, csrfToken));
       setMessages((prev) => dedupeCreated(prev, { message }));
       if (message.sequence > lastSeqRef.current) lastSeqRef.current = message.sequence;
       setPending((prev) => dropPendingFor(prev, clientMessageId));
@@ -365,7 +368,7 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
           if (r.stale) await fullReload();
         } catch { /* ignore */ }
         setPending((prev) => dropPendingFor(prev, clientMessageId));
-        setNotice('Ese mensaje ya se había enviado con otro texto.');
+        setNotice('Ese mensaje ya se había enviado con otro contenido.');
         return;
       }
       setPending((prev) => prev.map((p) =>
@@ -376,21 +379,22 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     }
   }, [me, csrfToken, catchUp, fullReload, fail]);
 
+  const send = useCallback((body: string) => sendContent(body), [sendContent]);
+  const sendPhoto = useCallback((file: File, caption: string) => sendContent(caption, file), [sendContent]);
+
   const retry = useCallback(async (clientMessageId: string) => {
     const item = pending.find((p) => p.clientMessageId === clientMessageId);
     if (!item) return;
     if (!canRetry(item, versionRef.current)) {
       // Pendiente de versión anterior (p. ej. tras vaciado): descartar, no resucitar.
       setPending((prev) => dropPendingFor(prev, clientMessageId));
-      setNotice('Ese texto es anterior al último cambio de la conversación y no se reenvió.');
+      setNotice('Ese mensaje es anterior al último cambio de la conversación y no se reenvió.');
       return;
     }
     setPending((prev) => prev.map((p) => (p.clientMessageId === clientMessageId ? { ...p, status: 'pending' as const, error: undefined } : p)));
     try {
-      const { message } = await apiSendMessage(
-        { clientMessageId: item.clientMessageId, body: item.body, conversationVersion: versionRef.current },
-        csrfToken,
-      );
+      const input = { clientMessageId: item.clientMessageId, body: item.body, conversationVersion: versionRef.current };
+      const { message } = await (item.photo ? apiSendPhoto(item.photo, input, csrfToken) : apiSendMessage(input, csrfToken));
       setMessages((prev) => dedupeCreated(prev, { message }));
       if (message.sequence > lastSeqRef.current) lastSeqRef.current = message.sequence;
       setPending((prev) => dropPendingFor(prev, clientMessageId));
@@ -499,7 +503,7 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     messages, pending, partner, version,
     loading, loadingMore, hasMore, loadError, connected,
     partnerTyping, partnerOnline, readByPartner, myRead,
-    send, retry, discardPending, loadMore, reload,
+    send, sendPhoto, retry, discardPending, loadMore, reload,
     removeMessage, clearAll, setTyping, notice,
   };
 }

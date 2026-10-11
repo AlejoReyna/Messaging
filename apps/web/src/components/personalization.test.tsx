@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import type { PublicUser } from '@private-chat/contracts';
 import { AvatarEditor } from './AvatarEditor';
+import { AvatarPreview } from './AvatarPreview';
 import { ThemePicker } from './ThemePicker';
 import { ProfileDialog } from './ProfileDialog';
 import { DEFAULT_THEME, THEMES, useTheme } from '../lib/themes';
@@ -51,6 +52,22 @@ function choose(file = new File(['image fixture'], 'avatar.png', { type: 'image/
 }
 
 describe('vista previa del avatar', () => {
+  it('la foto ajena usa la versión actual, muestra ausencia o error y no modifica el perfil', () => {
+    const other = { ...me, id: '22222222-2222-4222-8222-222222222222', displayName: 'Alexis' };
+    const view = render(<AvatarPreview user={other} onClose={vi.fn()} />);
+    expect(screen.getByText('No tiene foto de perfil.')).toBeInTheDocument();
+    const withPhoto = { ...other, avatarUrl: `/api/users/${other.id}/avatar?v=1`, avatarVersion: 1 };
+    view.rerender(<AvatarPreview user={withPhoto} onClose={vi.fn()} />);
+    fireEvent.error(screen.getByRole('img', { name: 'Foto de perfil de Alexis' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo cargar la foto.');
+    const updated = { ...withPhoto, avatarUrl: `/api/users/${other.id}/avatar?v=2`, avatarVersion: 2 };
+    view.rerender(<AvatarPreview user={updated} onClose={vi.fn()} />);
+    expect(screen.getByRole('img', { name: 'Foto de perfil de Alexis' })).toHaveAttribute('src', updated.avatarUrl);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('elegir y cancelar una imagen no envía ni cambia el perfil', () => {
     const { onSaved, onClose, unmount } = editor();
     choose();

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { GateScreen } from './GateScreen';
 import { PinChangeForm } from './PinChangeForm';
 import type { PublicUser } from '@private-chat/contracts';
+import { toApiFailure } from '../lib/api';
 
 const pinLogin = vi.hoisted(() => vi.fn());
 const pinSetup = vi.hoisted(() => vi.fn());
@@ -28,7 +29,7 @@ const me: PublicUser = {
   updatedAt: '2026-10-10T12:00:00.000Z',
 };
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); pinSetup.mockReset(); pinLogin.mockReset(); });
 
 function press(code: string) {
   fireEvent.click(screen.getByRole('button', { name: `Dígito ${code}` }));
@@ -84,6 +85,75 @@ describe('GateScreen (puerta con PIN)', () => {
     press('2'); press('2'); press('2'); press('2');
     expect(await screen.findByRole('alert')).toHaveTextContent(/no coinciden/i);
     expect(pinSetup).not.toHaveBeenCalled();
+  });
+
+  it('permite corregir la respuesta rechazada y completar el alta sin recargar', async () => {
+    stubFetch(() => ({ memberPinSet: false }));
+    pinSetup.mockRejectedValueOnce(toApiFailure(401, 'INVALID_CREDENTIALS', 'Usuario o contraseña incorrectos.'))
+      .mockResolvedValueOnce({ user: me, csrfToken: 'nuevo' });
+    render(<GateScreen />);
+    fireEvent.change(await screen.findByLabelText(/chihuahua fallecido/i), { target: { value: 'respuesta equivocada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    for (const digit of '1234') press(digit);
+    await screen.findByText('Confirma tu código');
+    for (const digit of '1234') press(digit);
+    const question = await screen.findByLabelText(/chihuahua fallecido/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/respuesta.*no es correcta/i);
+    expect(question).toHaveFocus();
+    fireEvent.change(question, { target: { value: 'respuesta corregida' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    for (const digit of '5678') press(digit);
+    await screen.findByText('Confirma tu código');
+    for (const digit of '5678') press(digit);
+    await waitFor(() => expect(pinSetup).toHaveBeenLastCalledWith('respuesta corregida', '5678'));
+    expect(pinSetup).toHaveBeenCalledTimes(2);
+    expect(pinLogin).not.toHaveBeenCalled();
+  });
+
+  it('conserva la confirmación para reintentar tras un error de conexión', async () => {
+    stubFetch(() => ({ memberPinSet: false }));
+    pinSetup.mockRejectedValueOnce(new Error('Sin conexión con el servidor.'))
+      .mockResolvedValueOnce({ user: me, csrfToken: 'nuevo' });
+    render(<GateScreen />);
+    fireEvent.change(await screen.findByLabelText(/chihuahua fallecido/i), { target: { value: 'respuesta-de-prueba' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    for (const digit of '1234') press(digit);
+    await screen.findByText('Confirma tu código');
+    for (const digit of '1234') press(digit);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Sin conexión/i);
+    expect(screen.getByText('Confirma tu código')).toBeInTheDocument();
+    for (const digit of '1234') press(digit);
+    await waitFor(() => expect(pinSetup).toHaveBeenCalledTimes(2));
+  });
+
+  it('permite volver a editar la respuesta antes de enviar y cancela el envío pendiente', async () => {
+    stubFetch(() => ({ memberPinSet: false }));
+    render(<GateScreen />);
+    fireEvent.change(await screen.findByLabelText(/chihuahua fallecido/i), { target: { value: 'respuesta-de-prueba' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    for (const digit of '1234') press(digit);
+    await screen.findByText('Confirma tu código');
+    for (const digit of '1234') press(digit);
+    fireEvent.click(screen.getByRole('button', { name: 'Corregir respuesta' }));
+    expect(screen.getByLabelText(/chihuahua fallecido/i)).toHaveValue('respuesta-de-prueba');
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(pinSetup).not.toHaveBeenCalled();
+    expect(pinLogin).not.toHaveBeenCalled();
+  });
+
+  it('si otro dispositivo ya completó el alta, ofrece entrar con el código existente', async () => {
+    stubFetch(() => ({ memberPinSet: false }));
+    pinSetup.mockRejectedValueOnce(toApiFailure(409, 'IDEMPOTENCY_CONFLICT', 'Conflicto'));
+    render(<GateScreen />);
+    fireEvent.change(await screen.findByLabelText(/chihuahua fallecido/i), { target: { value: 'respuesta-de-prueba' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    for (const digit of '1234') press(digit);
+    await screen.findByText('Confirma tu código');
+    for (const digit of '1234') press(digit);
+    expect(await screen.findByText('Ingresa tu código')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(/ya fue creado/i);
+    expect(screen.queryByRole('button', { name: 'Corregir respuesta' })).not.toBeInTheDocument();
   });
 });
 

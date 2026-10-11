@@ -219,6 +219,76 @@ describe("API chat (PostgreSQL real)", () => {
     assert.equal(missing.status, 404);
   });
 
+  it("miembro borra sólo su mensaje para ambos, con auditoría y sin resurrección", async () => {
+    const { version } = await cleanSlate();
+    const key = randomUUID();
+    const secret = `mensaje propio-${randomUUID()}`;
+    const created = await send(member, secret, version, key);
+    assert.equal(created.status, 201);
+    const id = (created.json as { message: { id: string } }).message.id;
+    const other = await send(admin, "mensaje ajeno que permanece", version);
+    const otherId = (other.json as { message: { id: string } }).message.id;
+    const del = await member.request("DELETE", `/api/messages/${id}`, { body: { conversationVersion: version } });
+    assert.equal(del.status, 200);
+    assert.deepEqual(del.json, { messageId: id, conversationVersion: version + 1 });
+    for (const client of [admin, member]) {
+      const list = await client.request("GET", "/api/messages", { csrf: false });
+      assert.deepEqual((list.json as { messages: Array<{ id: string }> }).messages.map((m) => m.id), [otherId]);
+    }
+    assert.equal((await server.db.conversation.findUniqueOrThrow({ where: { id: 1 } })).lastSequence, 2);
+    const audit = await server.db.deletionAudit.findFirstOrThrow({ where: { messageId: id } });
+    assert.equal(audit.actorId, server.users.memberId);
+    const journal = readJournal(server.journalPath);
+    assert.equal(journal.intents.length, 1);
+    assert.equal(journal.intents[0].actorId, server.users.memberId);
+    assert.ok(!readFileSync(server.journalPath, "utf8").includes(secret));
+    const retry = await send(member, secret, version + 1, key);
+    assert.equal(retry.status, 410);
+    const again = await member.request("DELETE", `/api/messages/${id}`, { body: { conversationVersion: version + 1 } });
+    assert.equal(again.status, 410);
+    assert.equal(await versionOf(), version + 1);
+  });
+
+  it("rechaza borrados ajenos y vaciado del miembro sin journal ni cambios de datos", async () => {
+    const { version } = await cleanSlate();
+    const own = await send(member, "propio", version);
+    const ownId = (own.json as { message: { id: string } }).message.id;
+    const other = await send(admin, "ajeno", version);
+    const otherId = (other.json as { message: { id: string } }).message.id;
+    const forbidden = await member.request("DELETE", `/api/messages/${otherId}`, { body: { conversationVersion: version } });
+    assert.equal(forbidden.status, 403);
+    assert.equal((forbidden.json as { error: { code: string } }).error.code, "FORBIDDEN");
+    const clear = await member.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: version } });
+    assert.equal(clear.status, 403);
+    const stale = await member.request("DELETE", `/api/messages/${ownId}`, { body: { conversationVersion: version + 1 } });
+    assert.equal(stale.status, 409);
+    const missing = await member.request("DELETE", `/api/messages/${randomUUID()}`, { body: { conversationVersion: version } });
+    assert.equal(missing.status, 404);
+    const noCsrf = await member.request("DELETE", `/api/messages/${ownId}`, { body: { conversationVersion: version }, csrf: false });
+    assert.equal(noCsrf.status, 403);
+    const anon = new TestClient(server.baseUrl);
+    await anon.session();
+    assert.equal((await anon.request("DELETE", `/api/messages/${ownId}`, { body: { conversationVersion: version } })).status, 401);
+    await reconcileDeletions(server.db, server.journalPath);
+    assert.equal(readJournal(server.journalPath).intents.length, 0);
+    assert.equal(await versionOf(), version);
+    assert.equal(await server.db.message.count(), 2);
+    assert.equal(await server.db.deletionAudit.count(), 0);
+  });
+
+  it("borrados simultáneos del miembro sólo aplican una vez", async () => {
+    const { version } = await cleanSlate();
+    const created = await send(member, "borrar una vez", version);
+    const id = (created.json as { message: { id: string } }).message.id;
+    const results = await Promise.all(Array.from({ length: 2 }, () =>
+      member.request("DELETE", `/api/messages/${id}`, { body: { conversationVersion: version } })));
+    assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
+    assert.equal(await versionOf(), version + 1);
+    assert.equal(await server.db.messageTombstone.count(), 1);
+    assert.equal(await server.db.deletionAudit.count(), 1);
+    assert.equal(readJournal(server.journalPath).intents.length, 1);
+  });
+
   it("vaciado conserva lastSequence y bloquea reintentos viejos", async () => {
     const { version } = await cleanSlate();
     await send(admin, "uno", version);
@@ -517,8 +587,18 @@ describe("API chat (PostgreSQL real)", () => {
     assert.equal(server.hub.onlineCount(), 2);
 
     // typing:set del admin debe llegar al miembro por el cable.
+    // El POST se procesa de forma asíncrona (revalida la sesión en DB);
+    // el primer GET puede devolver sólo la presencia ya encolada, así que
+    // se repite la lectura hasta ver el evento o agotar el plazo.
     await socketSend(a, admin, '42["typing:set",{"isTyping":true}]');
-    const memberPoll = await m.pollAgain();
+    let memberPoll = '';
+    {
+      const deadline = Date.now() + 8000;
+      while (Date.now() < deadline) {
+        memberPoll += await m.pollAgain();
+        if (memberPoll.includes('typing:updated') && memberPoll.includes(server.users.adminId)) break;
+      }
+    }
     assert.ok(
       memberPoll.includes("typing:updated"),
       `el miembro no recibió typing: ${memberPoll.slice(0, 200)}`,

@@ -35,7 +35,7 @@ export function LoginScreen() {
           <ul className="mt-5 space-y-2 text-sm text-muted">
             <li>· Exactamente dos cuentas, un contacto.</li>
             <li>· Texto y emojis, fotos de perfil editables.</li>
-            <li>· Sólo el administrador puede borrar mensajes.</li>
+            <li>· Puedes borrar tus mensajes; el administrador puede borrar cualquiera.</li>
           </ul>
         </div>
       </section>

@@ -1,6 +1,6 @@
 # Private Chat
 
-Chat web privado para exactamente dos cuentas: administrador y miembro, sin registro público, una conversación, PostgreSQL, perfiles editables y borrado exclusivo del administrador. Interfaz móvil/desktop inspirada en `docs/reference.png`.
+Chat web privado para exactamente dos cuentas: administrador y miembro, sin registro público, una conversación, PostgreSQL, perfiles editables y borrado de mensajes propios para ambos; el administrador también puede borrar mensajes ajenos y vaciar el historial. Interfaz móvil/desktop inspirada en `docs/reference.png`.
 
 **Estado:** frontend y backend integrados y funcionando contra PostgreSQL local, incluido el rol restringido y WebSocket real. La conversación ocupa toda la pantalla; escritorio tiene una barra lateral de iconos de 72 px. El despliegue y la ejecución Docker/PostgreSQL 18 siguen pendientes. El registro de pruebas está en [docs/STATUS.md](docs/STATUS.md).
 
@@ -44,6 +44,6 @@ Para una vista previa con datos sintéticos, después de `test:db:start` y `buil
 
 Seguir [Atlantic.net](docs/ATLANTIC.md). Incluye Docker Compose, Caddy/HTTPS, redes internas, secretos, bootstrap y respaldo/restauración aislada. El código no contiene dominio real ni acceso a un VPS y no se ha desplegado.
 
-El MVP cifra el transporte con HTTPS y usa backups cifrados. **No tiene cifrado de extremo a extremo:** el servidor puede leer los mensajes. El usuario aún debe elegir E2EE y adjuntos antes de ampliar el contrato. El borrado elimina contenido activo y usa un journal sin texto para reconciliar copias antiguas; no borra capturas ni copias hechas por los usuarios.
+El MVP cifra el transporte con HTTPS y usa backups cifrados. **No tiene cifrado de extremo a extremo:** el servidor puede leer los mensajes. Se pueden enviar fotos JPEG/PNG/WebP de hasta 5 MiB desde el icono de imagen, con vista previa y texto opcional. E2EE y otros adjuntos siguen fuera del alcance. El borrado elimina contenido activo y usa un journal sin texto para reconciliar copias antiguas; no borra capturas ni copias hechas por los usuarios.
 
 Referencias: [Docker Compose secrets](https://docs.docker.com/compose/how-tos/use-secrets/), [imagen PostgreSQL 18 y volúmenes](https://hub.docker.com/_/postgres), [Caddy HTTPS](https://caddyserver.com/docs/quick-starts/https), [restic](https://restic.readthedocs.io/en/stable/).

@@ -106,7 +106,7 @@ export function ProfileDialog({ me, theme, onChooseTheme, avatarOpen, onOpenAvat
                   </span>
                 </button>
               </h2>
-              <p className="text-xs text-muted">{me.role === 'admin' ? 'Administrador · puede borrar mensajes' : 'Miembro del chat'}</p>
+              <p className="text-xs text-muted">{me.role === 'admin' ? 'Administrador · puede borrar cualquier mensaje' : 'Miembro · puede borrar sus mensajes'}</p>
             </div>
           </div>
           <button type="button" onClick={onClose} aria-label="Cerrar ajustes"

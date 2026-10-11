@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { ChatPanel } from '../components/ChatPanel';
 import type { Message, PublicUser } from '@private-chat/contracts';
 
@@ -67,17 +67,63 @@ describe('permisos de borrado en el cliente (el servidor es la autoridad)', () =
     expect(screen.getByRole('button', { name: /vaciar conversación/i })).toBeInTheDocument();
   });
 
-  it('el member NO ve controles de borrado del chat', () => {
-    // isAdmin=false oculta borrar y vaciar; el contrato exige esta ausencia en UI.
-    render(<ChatPanel {...baseProps({ isAdmin: false })} />);
+  it('el member no puede borrar mensajes ajenos ni vaciar el chat', () => {
+    render(<ChatPanel {...baseProps({ isAdmin: false, me: user({ role: 'member' }) })} />);
     expect(screen.queryByRole('button', { name: /borrar mensaje/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /vaciar conversación/i })).not.toBeInTheDocument();
     // El historial sigue visible para el miembro.
     expect(screen.getByText('Hola, ¿cómo estás?')).toBeInTheDocument();
   });
+
+  it('el member puede seleccionar sólo su mensaje para borrarlo individualmente', () => {
+    const props = baseProps({ isAdmin: false, me: user({ role: 'member' }) });
+    const ownMessage: Message = {
+      ...props.messages[0]!,
+      id: '55555555-5555-4555-8555-555555555555',
+      clientMessageId: '66666666-6666-4666-8666-666666666666',
+      senderId: props.me.id,
+      sequence: 2,
+      body: 'Mi mensaje',
+    };
+    render(<ChatPanel {...props} messages={[...props.messages, ownMessage]} />);
+    const buttons = screen.getAllByRole('button', { name: /borrar mensaje/i });
+    expect(buttons).toHaveLength(1);
+    const button = screen.getByRole('button', { name: /borrar mensaje/i });
+    expect(button).toHaveAttribute('title', 'Borrar para ambos');
+    fireEvent.click(button);
+    expect(props.onDeleteMessage).toHaveBeenCalledExactlyOnceWith(ownMessage.id);
+    expect(screen.queryByRole('button', { name: /vaciar conversación/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Hola, ¿cómo estás?')).toBeInTheDocument();
+  });
 });
 
 describe('MVP sin botones muertos', () => {
+  it('la foto del contacto abre una vista sin acciones de modificación y restaura el foco al cerrar', () => {
+    const props = baseProps();
+    const contact = props.partner!;
+    const partner = { ...contact, avatarUrl: `/api/users/${contact.id}/avatar?v=2`, avatarVersion: 2 };
+    const view = render(<ChatPanel {...props} partner={partner} />);
+    const open = screen.getByRole('button', { name: 'Ver foto de perfil de Pareja' });
+    open.focus();
+    fireEvent.click(open);
+    expect(screen.getByRole('dialog', { name: 'Foto de perfil de Pareja' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Foto de perfil de Pareja' })).toHaveAttribute('src', partner.avatarUrl);
+    expect(screen.queryByRole('button', { name: /cambiar imagen|guardar imagen|quitar|eliminar foto/i })).not.toBeInTheDocument();
+    expect(view.container.querySelector('input[type="file"]')).toBeNull();
+    const close = screen.getByRole('button', { name: 'Cerrar vista previa' });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(close, { key: 'Tab' });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(close, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(open).toHaveFocus();
+  });
+
+  it('sin contacto aún no ofrece abrir su foto', () => {
+    render(<ChatPanel {...baseProps({ partner: null })} />);
+    expect(screen.queryByRole('button', { name: /ver foto de perfil/i })).not.toBeInTheDocument();
+  });
+
   it('no muestra llamadas, audio, grupos, registro ni adjuntos', () => {
     render(<ChatPanel {...baseProps()} />);
     expect(screen.queryByRole('button', { name: /llamar|videollamada|audio|grupo|adjuntar/i })).not.toBeInTheDocument();

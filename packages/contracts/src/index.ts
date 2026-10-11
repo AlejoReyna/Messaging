@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
-export const CONTRACT_VERSION = 2;
+export const CONTRACT_VERSION = 3;
 export const MAX_MESSAGE_LENGTH = 4000;
+export const MAX_CHAT_PHOTO_BYTES = 5 * 1024 * 1024;
+export const PHOTO_MESSAGE_BODY = '📷 Foto';
 export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 export const AVATAR_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const CONVERSATION_ID = 1;
@@ -95,6 +97,7 @@ export const MessageSchema = z.strictObject({
   senderId: uuid,
   sequence: positiveInteger,
   body: MessageBodySchema,
+  photoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/photo$/i).optional(),
   createdAt: timestamp,
 });
 export const SendMessageInputSchema = z.strictObject({
@@ -118,6 +121,8 @@ export const MarkReadInputSchema = z.strictObject({
   lastReadSequence: nonnegativeInteger,
   conversationVersion: positiveInteger,
 });
+// Borrado individual: administrador o autor; vaciado: sólo administrador.
+// Ambos conservan el mismo DTO y el borrado se sincroniza para las dos cuentas.
 export const DeleteInputSchema = z.strictObject({ conversationVersion: positiveInteger });
 export const MessageDeletedEventSchema = z.strictObject({
   messageId: uuid,
@@ -192,7 +197,8 @@ export const API_ROUTES = {
   pinStatus: '/api/auth/pin-status', pinSetup: '/api/auth/pin-setup', pinLogin: '/api/auth/pin-login',
   changePin: '/api/auth/change-pin',
   me: '/api/users/me', myAvatar: '/api/users/me/avatar', conversation: '/api/conversation',
-  messages: '/api/messages', read: '/api/conversation/read', clearMessages: '/api/conversation/messages',
+  messages: '/api/messages', sendPhoto: '/api/messages/photo', read: '/api/conversation/read', clearMessages: '/api/conversation/messages',
   message: (id: string) => `/api/messages/${encodeURIComponent(id)}`,
+  messagePhoto: (id: string) => `/api/messages/${encodeURIComponent(id)}/photo`,
   avatar: (id: string, version: number) => `/api/users/${encodeURIComponent(id)}/avatar?v=${version}`,
 } as const;

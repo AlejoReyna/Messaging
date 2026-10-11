@@ -1,6 +1,6 @@
 # Private Chat — coordinación de tres modelos
 
-Objetivo autorizado: chat web privado para exactamente dos cuentas precreadas, una conversación, contraseñas individuales, PostgreSQL, nombres y fotos editables, borrado exclusivo del administrador, UI responsive inspirada en `docs/reference.png` y despliegue en un VPS de Atlantic.net.
+Objetivo autorizado: chat web privado para exactamente dos cuentas precreadas, una conversación, contraseñas individuales, PostgreSQL, nombres y fotos editables, borrado individual de mensajes propios para ambos y borrado de cualquier mensaje/vaciado exclusivo del administrador, UI responsive inspirada en `docs/reference.png` y despliegue en un VPS de Atlantic.net.
 
 Lee `docs/CONTRACT.md` y `packages/contracts/src/index.ts` antes de implementar. Son la fuente de verdad; no inventes endpoints ni cambies DTO sin coordinación.
 
@@ -17,7 +17,7 @@ Lee `docs/CONTRACT.md` y `packages/contracts/src/index.ts` antes de implementar.
 
 ## Alcance y seguridad
 
-MVP: texto y emojis, perfiles, historial persistente, estados de envío/lectura, reconexión, escritura/presencia y administración del borrado. Las llamadas, los audios, los adjuntos y el cifrado de extremo a extremo están fuera de este MVP hasta que el usuario los elija. No presentes HTTPS como cifrado de extremo a extremo.
+MVP: texto y emojis, fotos en mensajes (elegidas explícitamente por el usuario), perfiles, historial persistente, estados de envío/lectura, reconexión, escritura/presencia, borrado individual de mensajes propios y administración del borrado. Las llamadas, los audios, otros adjuntos y el cifrado de extremo a extremo están fuera de este MVP hasta que el usuario los elija. No presentes HTTPS como cifrado de extremo a extremo.
 
 Contraseñas Argon2id, sesiones opacas revocables en cookies HttpOnly/Secure/SameSite, CSRF, Origin estricto para sockets y autorización del lado servidor. Sin registro público, secretos en frontend, JWT en localStorage, contraseñas en logs, contenido de mensajes en logs ni datos de producción inventados.
 

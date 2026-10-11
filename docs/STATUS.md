@@ -1,18 +1,25 @@
 # Estado verificable del proyecto
 
-Actualizado 2026-10-10 por el principal. Frontend y backend entregados e integrados. El MVP funciona con PostgreSQL local y dos cuentas de QA; no está desplegado en Atlantic.net.
+Actualizado 2026-10-11 por el principal. Frontend y backend integrados y publicados en Atlantic.net, en `https://marthi.alexisrs.dev/`. El flujo autenticado de pruebas usa dos cuentas de QA y PostgreSQL exclusivo; no se crean datos de prueba en producción.
 
 ## Implementado
 
 - Tres prompts autocontenidos, ownership, contrato HTTP/Socket.IO/Zod y referencia visual.
-- Frontend responsive, contraseña inicial obligatoria, perfiles/fotos, conversación persistente, reconexión, presencia/escritura/lectura y borrado exclusivo del admin.
+- Frontend responsive, contraseña inicial obligatoria, perfiles/fotos, conversación persistente, reconexión, presencia/escritura/lectura y borrado individual de mensajes propios para ambos; borrado de mensajes ajenos y vaciado exclusivo del admin.
 - Ajuste solicitado: conversación a 100dvh, sin márgenes exteriores ni esquinas redondeadas del contenedor; escritorio con rail de 72 px e iconos; móvil sin rail. Historial con scroll propio y compositor visible. Avatares sin estilos inline, compatibles con CSP.
 - API Fastify/Prisma/PostgreSQL, dos slots con roles fijos y sin registro. Contraseñas Argon2id, cookies HttpOnly/Secure en producción, CSRF, autorización server-side y WebSocket con Origin exacto. Revalidación de sesiones por acción y expiración de sockets.
 - Journal estricto, intenciones validadas/capturadas bajo lock, recuperación antes de abrir HTTP, recuperación read-only con revocación de sesiones, tombstones y auditoría sin texto. Borrados rechazados no se ejecutan al reiniciar; el vaciado no elimina mensajes posteriores a sus IDs capturados.
 - Infraestructura Compose Node24/PostgreSQL18/Caddy, roles separados, secretos, generación Prisma explícita, bootstrap con *_FILE y contraseña APP separada del OWNER, backups cifrados externos y recuperación aislada.
 - Helper PostgreSQL nativo de integración en cluster exclusivo loopback55432; preview QA separada en private_chat_preview, API loopback3000, frontend loopback5173. No se modificó otra instancia existente por los helpers del principal.
 
-## Resultados ejecutados
+## Verificación del borrado propio — 2026-10-11
+
+- `npm run verify:local`: 136/136, cero omisiones; tipos y builds correctos. Contratos 6, base 6, backend unitarias 25, frontend 51, API PostgreSQL 45 y runtime PostgreSQL/WebSocket 3.
+- Invitado borra su mensaje para ambos; mensajes ajenos y vaciado devuelven 403. Se verifican autoría, CSRF, sesiones, journal sin texto, auditoría, concurrencia, tombstones y evento recibido por ambas cuentas mediante WebSocket real.
+- Build Docker API/web y actualización de ambos servicios en el VPS correctos (Node24.21.0); PostgreSQL y proyectos vecinos siguen activos. Web/ready públicos 200; historial y borrado anónimos 401. Recursos publicados y autorización del contenedor confirmados.
+- El flujo de dos usuarios se probó en QA; falta una nueva revisión visual y prueba manual autenticada en producción. Detalles en `docs/handoffs/principal.md`.
+
+## Resultados históricos — 2026-10-10
 
 `npm run verify:local` PASÓ con Node26.10.0 y PostgreSQL16.15:
 
@@ -28,8 +35,17 @@ Actualizado 2026-10-10 por el principal. Frontend y backend entregados e integra
 
 ## Pendiente para producción
 
-- Docker no está instalado en este entorno: Compose config/build/arranque y PostgreSQL18/Node24 no ejecutados. Tampoco backups/restores completos en contenedores.
+- Docker no está instalado localmente. En el VPS se ejecutaron config/build/arranque API/web con Node24 y PostgreSQL18 existente saludable. Backups/restores completos en contenedores siguen como verificación separada.
 - Verificar diseños a 360/390 y 1280/1440 px con el ajuste final, teclado móvil y flujo de ambos usuarios en navegador.
-- Dominio/acceso al VPS Atlantic.net y repositorio externo de backups no proporcionados. Configurar esos datos y ejecutar docs/ATLANTIC.md antes de considerar producción lista.
+- Dominio y acceso Atlantic.net configurados; verificar por separado la configuración/recuperación de respaldos externos antes de considerar cerrada la operación de producción.
 
 MVP de texto/emojis y fotos de perfil, **sin E2EE**, llamadas ni adjuntos. No hay replicación continua del journal fuera del VPS; recuperación sin resurrecciones exige conservar una copia actual íntegra. No se promete esa garantía tras perder simultáneamente servidor y journal.
+
+
+## Foto del contacto — 2026-10-11
+
+Vista circular ampliada al pulsar la foto del contacto, con el mismo contenedor visual que la propia y sin controles de modificación. Frontend 54/54 y build/TypeScript correctos. Cambio publicado reconstruyendo sólo web; web/ready 200 y nuevos recursos confirmados. No hay cambios API/DB; revisión visual autenticada pendiente. Informe en `docs/handoffs/principal.md`.
+
+## Stickers y fotos — 2026-10-11
+
+Stickers Chiikawa (40, selector con preview/Enviar, borrador conservado) y fotos por mensaje (icono, preview, texto opcional, ampliación) verificados: `npm run verify:local` **154/154**, cero omisiones. Se corrigió el test de typing por polling (racy, sin cambios de producto). Despliegue al VPS pendiente; revisión visual en navegador pendiente.

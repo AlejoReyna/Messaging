@@ -1,7 +1,7 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest, type FastifyReply } from "fastify";
 import cookie from "@fastify/cookie";
 import multipart from "@fastify/multipart";
 import helmet from "@fastify/helmet";
@@ -18,6 +18,8 @@ import {
   PinLoginInputSchema,
   PinStatusResponseSchema,
   MAX_AVATAR_BYTES,
+  PHOTO_MESSAGE_BODY,
+  type SendMessageInput,
   type Message,
 } from "@private-chat/contracts";
 import type { PrismaClient } from "@prisma/client";
@@ -39,6 +41,7 @@ import { hashPassword, verifyPassword } from "../auth/password.js";
 import { MemoryRateLimiter } from "../lib/rate-limit.js";
 import { toPublicUser } from "../users.js";
 import { detectImageFormat, processAvatarImage } from "../avatar.js";
+import { processChatPhoto } from "../photo.js";
 import { replaceAvatar } from "../avatar-storage.js";
 import { applyConversationClear, applyMessageDeletion, lockConversation } from "../deletions.js";
 import { appendJournalEntry, type JournalEntry } from "../deletion-journal.js";
@@ -71,6 +74,9 @@ function cookieFlags(isProd: boolean): { httpOnly: true; secure: boolean; sameSi
   return { httpOnly: true, secure: isProd, sameSite: "lax", path: "/" };
 }
 
+const messageSelect = { id: true, clientMessageId: true, senderId: true, sequence: true,
+  body: true, createdAt: true, photoHash: true } as const;
+
 function serializeMessage(row: {
   id: string;
   clientMessageId: string;
@@ -78,6 +84,7 @@ function serializeMessage(row: {
   sequence: number;
   body: string;
   createdAt: Date;
+  photoHash?: string | null;
 }): Message {
   return {
     id: row.id,
@@ -86,6 +93,7 @@ function serializeMessage(row: {
     sequence: row.sequence,
     body: row.body,
     createdAt: row.createdAt.toISOString(),
+    ...(row.photoHash ? { photoUrl: `/api/messages/${row.id}/photo` } : {}),
   };
 }
 
@@ -694,6 +702,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         where: { conversationId: 1, sequence: { gt: after } },
         orderBy: { sequence: "asc" },
         take: limit + 1,
+        select: messageSelect,
       });
       hasMore = fetched.length > limit;
       rows = (hasMore ? fetched.slice(0, limit) : fetched);
@@ -703,6 +712,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         where: before !== undefined ? { conversationId: 1, sequence: { lt: before } } : { conversationId: 1 },
         orderBy: { sequence: "desc" },
         take: limit + 1,
+        select: messageSelect,
       });
       hasMore = fetched.length > limit;
       const page = (hasMore ? fetched.slice(0, limit) : fetched).reverse();
@@ -728,7 +738,58 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     // El límite de frecuencia sólo cuenta intentos bien formados.
     if (!sendByUser.take(userId)) return fail(reply, ERRORS.rateLimited());
 
-    const { clientMessageId, body, conversationVersion } = parsed.data;
+    return persistMessage(userId, parsed.data, reply);
+  });
+
+  app.post("/api/messages/photo", async (request, reply) => {
+    if (request.headers.origin && request.headers.origin !== config.appOrigin) return fail(reply, ERRORS.csrfInvalid());
+    const error = await guard(request, { auth: true, csrf: true });
+    if (error) return fail(reply, error);
+    const userId = request.auth!.userId;
+    if (!sendByUser.take(userId)) return fail(reply, ERRORS.rateLimited());
+    let photo: Buffer | undefined;
+    const fields: Record<string, string> = {};
+    try {
+      for await (const part of request.parts()) {
+        if (part.type === "file") {
+          if (part.fieldname !== "photo" || photo) throw new Error("INVALID_IMAGE");
+          photo = await part.toBuffer();
+          if (part.file.truncated) throw new Error("INVALID_IMAGE");
+        } else {
+          if (!["body", "clientMessageId", "conversationVersion"].includes(part.fieldname) ||
+            part.fieldname in fields || typeof part.value !== "string" || part.valueTruncated) {
+            throw new Error("INVALID_FIELDS");
+          }
+          fields[part.fieldname] = part.value;
+        }
+      }
+      if (!photo) throw new Error("INVALID_IMAGE");
+    } catch { return fail(reply, ERRORS.uploadInvalid()); }
+    const parsed = SendMessageInputSchema.safeParse({ ...fields,
+      body: fields["body"]?.trim() || PHOTO_MESSAGE_BODY, conversationVersion: Number(fields["conversationVersion"]) });
+    if (!parsed.success) return fail(reply, ERRORS.validation("Datos no válidos"));
+    let processed: Buffer;
+    try { processed = await processChatPhoto(photo); }
+    catch { return fail(reply, ERRORS.uploadInvalid()); }
+    return persistMessage(userId, parsed.data, reply, processed);
+  });
+
+  app.get("/api/messages/:messageId/photo", async (request, reply) => {
+    const error = await guard(request, { auth: true, csrf: false });
+    if (error) return fail(reply, error);
+    const { messageId } = request.params as { messageId: string };
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId)) {
+      return fail(reply, ERRORS.validation("Identificador no válido"));
+    }
+    const row = await db.message.findUnique({ where: { id: messageId }, select: { photoData: true } });
+    if (!row?.photoData) return fail(reply, ERRORS.messageNotFound());
+    return reply.type("image/webp").header("x-content-type-options", "nosniff").send(Buffer.from(row.photoData));
+  });
+
+  async function persistMessage(userId: string, input: SendMessageInput, reply: FastifyReply, photo?: Buffer) {
+    const { clientMessageId, body, conversationVersion } = input;
+
+    const photoHash = photo ? createHash("sha256").update(photo).digest("hex") : null;
 
     const send = async (): Promise<{ message: Message; created: boolean }> =>
       db.$transaction(async (tx) => {
@@ -738,9 +799,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         }
         const existing = await tx.message.findUnique({
           where: { senderId_clientMessageId: { senderId: userId, clientMessageId } },
+          select: messageSelect,
         });
         if (existing) {
-          if (existing.body !== body) {
+          if (existing.body !== body || existing.photoHash !== photoHash) {
             throw Object.assign(new Error("IDEMPOTENCY_CONFLICT"), { code: "IDEMPOTENCY_CONFLICT" });
           }
           return { message: serializeMessage(existing), created: false };
@@ -760,7 +822,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
             clientMessageId,
             sequence: nextSequence,
             body,
+            ...(photo ? { photoData: new Uint8Array(photo), photoHash } : {}),
           },
+          select: messageSelect,
         });
         await tx.conversation.update({ where: { id: 1 }, data: { lastSequence: nextSequence } });
         return { message: serializeMessage(created), created: true };
@@ -776,9 +840,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       if (code === "P2002") {
         const existing = await db.message.findUnique({
           where: { senderId_clientMessageId: { senderId: userId, clientMessageId } },
+          select: messageSelect,
         });
         if (existing) {
-          if (existing.body !== body) return fail(reply, ERRORS.idempotencyConflict());
+          if (existing.body !== body || existing.photoHash !== photoHash) return fail(reply, ERRORS.idempotencyConflict());
           return reply.status(200).send({ message: serializeMessage(existing) });
         }
         const tombstone = await db.messageTombstone.findUnique({
@@ -793,7 +858,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       if (code === "NOT_PROVISIONED") return fail(reply, ERRORS.unavailable());
       throw e;
     }
-  });
+  }
 
   app.post("/api/conversation/read", async (request, reply) => {
     const error = await guard(request, { auth: true, csrf: true });
@@ -830,7 +895,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     });
   });
 
-  // --- Borrados (sólo admin) -------------------------------------------------
+  // --- Borrados (propios o admin; vaciado sólo admin) -------------------------
   async function requireAdmin(request: FastifyRequest): Promise<ApiHttpError | null> {
     if (!request.auth) return ERRORS.unauthenticated();
     const user = await db.user.findUnique({ where: { id: request.auth.userId }, select: { role: true } });
@@ -847,8 +912,6 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   app.delete("/api/messages/:messageId", async (request, reply) => {
     const error = await guard(request, { auth: true, csrf: true });
     if (error) return fail(reply, error);
-    const adminError = await requireAdmin(request);
-    if (adminError) return fail(reply, adminError);
     const actorId = request.auth!.userId;
 
     const params = request.params as { messageId?: string };
@@ -875,12 +938,16 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         if (conv.version !== parsed.data.conversationVersion) {
           throw Object.assign(new Error("CONVERSATION_CHANGED"), { code: "CONVERSATION_CHANGED" });
         }
-        const target = await tx.message.findUnique({ where: { id: messageId }, select: { id: true } });
+        const actor = await tx.user.findUnique({ where: { id: actorId }, select: { role: true } });
+        if (!actor) throw ERRORS.unauthenticated();
+        const target = await tx.message.findUnique({ where: { id: messageId }, select: { id: true, senderId: true } });
         if (!target) {
-          const deleted = await tx.messageTombstone.findUnique({ where: { messageId }, select: { messageId: true } });
+          const deleted = await tx.messageTombstone.findUnique({ where: { messageId }, select: { senderId: true } });
+          if (deleted && actor.role !== "admin" && deleted.senderId !== actorId) throw ERRORS.forbidden();
           const code = deleted ? "MESSAGE_DELETED" : "MESSAGE_NOT_FOUND";
           throw Object.assign(new Error(code), { code });
         }
+        if (actor.role !== "admin" && target.senderId !== actorId) throw ERRORS.forbidden();
         // Sólo una operación válida llega al journal, dentro del mismo lock
         // que usan los envíos. Un 404/409/410 no se ejecutará al reiniciar.
         try { appendJournalEntry(config.deletionJournalPath, intent); }

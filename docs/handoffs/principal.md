@@ -46,3 +46,57 @@ Petición del usuario: carita UwU en lineart al centro del historial vacío, ton
 - El primer intento de reutilizar el helper de integración falló al importar exports de contracts de PIN en curso, antes de ejecutar peticiones. Se completó con un cliente HTTP temporal sin importar código backend.
 - `scripts/preview-local.mjs` inicializa ahora esos nombres cuando encuentra los nombres genéricos anteriores; conserva posteriores ediciones personales. `node --check scripts/preview-local.mjs`: correcto. `docs/CONTRACT.md` y `docs/THEMES.md` actualizados con la orientación de los nombres.
 - Sin nuevas dependencias, endpoints ni DTO. No se ha desplegado al VPS.
+
+## Puerta visual, Cocoa y acceso admin — 2026-10-10
+
+- Se quitó el corazón de `GateScreen`; el fondo previo al acceso ahora es una estructura visual del chat con burbujas de muestra sin texto ni datos reales, desenfocada y cubierta por la puerta. Cuando termina el alta o el login PIN, `App` desmonta `GateScreen` y deja visible el chat autenticado.
+- El icono de ajustes en móvil y escritorio usa `Settings` de Lucide (engrane lineal). Se añadió Cocoa como tema número once y tema inicial sólo para la cuenta miembro Marthiel; la preferencia previa que ella hubiera guardado conserva prioridad.
+- `npm run typecheck --workspace @private-chat/web` y `npm run build --workspace @private-chat/web`: correctos. Construcción Docker de `web` en el VPS correcta; `up -d --no-deps web` recreó sólo `private-chat-web-1`. API y PostgreSQL siguieron saludables.
+- `curl -I https://marthi.alexisrs.dev/`: HTTP/2 200. Se confirmaron los nuevos recursos con `Cocoa` y los colores del tema; Brave mostró la pantalla sin corazón y el fondo de chat borroso. No se reinició el VPS ni se recargó/modificó Caddy en esta publicación. No se ejecutaron pruebas automatizadas.
+- No hay cambios en DTO, endpoints ni dependencias.
+
+### Credenciales admin durante el alta del miembro — 2026-10-10
+
+- Petición del usuario: permitir que el administrador entre antes de que Marthiel configure Sammy y su PIN.
+- `GateScreen` ofrece “Ingresar con credenciales de admin” tanto en la pantalla inicial de pregunta como en la pantalla PIN posterior. El formulario muestra el usuario admin actual (`alexisdev`) y solicita su contraseña mediante input de tipo password; la API existente confirma el acceso. “Volver” regresa a la pregunta o al PIN según corresponda.
+- No se usa el login por contraseña del miembro desde esta UI; la cuenta de miembro conserva su flujo de pregunta secreta y creación de PIN.
+
+### Usuario editable en el acceso admin — 2026-10-10
+
+- `apps/web/src/components/GateScreen.tsx`: el campo de usuario dejó de ser de sólo lectura y ahora se puede editar; inicia con `AlexisDev` y se envía por el flujo de login existente, que normaliza el nombre a minúsculas.
+- El `ADMIN_USERNAME` activo en la API es `alexisdev`, así que el uso de mayúsculas en el nombre no explica un error de acceso. La contraseña sí distingue mayúsculas/minúsculas.
+- `npm run build --workspace @private-chat/web`: correcto. Build Docker de `web` en `/opt/private-chat`: correcto. Se recreó únicamente `private-chat-web-1` con `--no-deps`; la API y PostgreSQL siguieron saludables, Caddy y los demás proyectos siguieron activos.
+- Brave recargó `marthi.alexisrs.dev`; el formulario de admin mostró el usuario como campo editable. No probé ni cambié la contraseña.
+- Sin dependencias, cambios de contrato ni endpoints; no se ejecutaron pruebas automatizadas.
+
+
+## Borrado individual del invitado — 2026-10-11
+
+- Petición: permitir que la cuenta invitada borre sus propios mensajes uno por uno, para ambos, sin límite temporal. El administrador conserva borrado de cualquier mensaje y vaciado del historial.
+- Backend: `apps/api/src/http/app.ts` autoriza con el autor persistido y el rol de la sesión dentro de la transacción y antes del journal; también comprueba la autoría de tombstones. Mantiene lock, versión, CSRF, auditoría, journal y eventos existentes. No cambia endpoints, DTO, esquema PostgreSQL ni dependencias.
+- Frontend: `apps/web/src/components/MessageBubble.tsx`, `apps/web/src/App.tsx`, `apps/web/src/index.css`, `apps/web/src/components/LoginScreen.tsx`, `apps/web/src/components/ProfileDialog.tsx`. Papelera para mensajes propios o administrador; callback comprueba autoría; confirmación “Borrar para ambos”. En pantallas táctiles el botón es visible y tiene área mínima de 44×44 px.
+- Pruebas: `apps/web/src/components/permissions.test.tsx`, `apps/api/test/integration/auth.test.ts`, `apps/api/test/integration/chat.test.ts`, `scripts/integration/runtime.test.mjs`. Cubren selección del mensaje propio, rechazo de mensajes ajenos/vaciado, CSRF y acceso anónimo, auditoría/journal sin texto, idempotencia sin resurrección, borrados simultáneos y difusión WebSocket a ambas cuentas usando el rol PostgreSQL restringido.
+- Coordinación: actualizados `AGENTS.md`, `docs/CONTRACT.md`, comentario de permisos en `packages/contracts/src/index.ts`, `README.md`, `docs/STATUS.md` y guía Atlantic. Los informes frontend/backend originales permanecen como histórico.
+- `npm run verify:local`: final correcto, 136/136, cero omisiones (contratos 6, base 6, backend unitarias 25, frontend 51, API PostgreSQL 45, runtime PostgreSQL/WebSocket 3); tipos y builds correctos. Las primeras ejecuciones corrigieron dos errores TypeScript del nuevo test y una expectativa incorrecta sobre Origin HTTP con CSRF válido; el contrato exige Origin estricto para sockets, cuyos rechazos continúan verificados.
+- Publicación: se transfirieron únicamente los seis archivos de aplicación citados, después de comparar sus bases con el VPS y guardar sus versiones anteriores. `docker compose -f compose.yaml -f compose.atlantic.yaml build api web` y `up -d --no-deps --wait --wait-timeout 60 api web`: correctos en `/opt/private-chat`. Node remoto v24.21.0. API y web actualizadas; PostgreSQL del chat y los otros proyectos conservaron sus contenedores activos.
+- Verificación pública posterior: web 200, recursos JS/CSS con los nuevos controles, `/api/ready` 200, historial anónimo 401 y DELETE con sesión anónima/CSRF válido 401. Se confirmó la comprobación de autoría en el código compilado del contenedor API. Durante la recreación hubo una respuesta 502 transitoria; las verificaciones finales pasaron.
+- Limitaciones: el flujo autenticado de dos cuentas se ejecutó sobre PostgreSQL exclusivo de QA, no sobre cuentas/mensajes de producción. No se crearon mensajes de prueba en producción ni se realizó una nueva revisión visual móvil/desktop en navegador. Las pruebas de componentes y el CSS táctil no se presentan como esa revisión visual.
+
+
+## Vista de la foto del contacto — 2026-10-11
+
+- La foto del contacto en la cabecera es un botón accesible que abre la vista circular ampliada, en móvil y escritorio. El visor ajeno contiene únicamente foto/nombre/cierre; no tiene input de archivos ni acciones de cambio, guardado o eliminación.
+- Archivos: nuevos `apps/web/src/components/AvatarLightbox.tsx` y `AvatarPreview.tsx`; ajustados `AvatarEditor.tsx` y `ChatPanel.tsx`. El contenedor compartido conserva el fondo oscuro, tamaños, cierre con fondo/Escape, foco inicial, ciclo de Tab y restitución del foco. El editor propio conserva su selección/preview/guardado. El visor se actualiza con la versión del avatar y muestra ausencia/error sin acciones de edición.
+- Pruebas en `permissions.test.tsx` y `personalization.test.tsx`: apertura desde la cabecera, URL privada versionada, ausencia de controles de modificación, cierre/foco, contacto aún no cargado, avatar ausente/fallido y actualización posterior. Continúan aprobadas las pruebas del guardado propio con multipart/CSRF y cancelación sin subida.
+- `npm run build --workspace @private-chat/web`: correcto, TypeScript y Vite. `npm run test --workspace @private-chat/web`: 54/54, siete archivos. Primera compilación corrigió nulabilidad de un dato del fixture del nuevo test. `git diff --check`: correcto. No hay nuevas dependencias, endpoints, DTO ni cambios backend/DB.
+- `docs/CONTRACT.md` actualizado. Se compararon las fuentes anteriores de AvatarEditor/ChatPanel con el VPS y se guardó copia antes de transferir únicamente los cuatro archivos de aplicación de este cambio.
+- Publicación en `/opt/private-chat`: `docker compose -f compose.yaml -f compose.atlantic.yaml build web` y `up -d --no-deps --wait --wait-timeout 60 web`, correctos. Sólo se recreó web. API/PostgreSQL y proyectos vecinos siguen activos. Web y `/api/ready` públicos: 200. El bundle publicado contiene la apertura del visor del contacto, el caso sin foto y el editor propio.
+- Alcance de verificación: componentes y compilación, publicación y comprobaciones HTTP/recursos; no se realizó una nueva revisión visual en navegador ni prueba autenticada de las fotos de producción. No se repitieron las suites PostgreSQL porque no cambió el backend.
+
+## Stickers Chiikawa + fotos en mensajes — 2026-10-11 (cierre)
+
+- Petición del usuario: paquete de 40 stickers de Chiikawa con selector junto al compositor (elegir, previsualizar, quitar, Enviar; conserva el borrador de texto) e icono de foto para enviar una imagen por mensaje con vista previa local y texto opcional, ampliable al pulsarla. Todo ya estaba implementado en el árbol de trabajo; el principal verificó y cerró la integración.
+- Contrato v3 (`docs/CONTRACT.md`, `packages/contracts`): stickers como body `[sticker:chiikawa:ID]` sobre el flujo de texto existente, sin nuevos endpoints/DTO; fotos vía `POST /api/messages/photo` (multipart, Sharp → WebP ≤2048px sin EXIF, bytes+SHA privados en la fila, `photoUrl` autenticada, idempotencia por texto+hash, borrado con el mensaje). Sin peticiones a terceros en uso.
+- Corrección del principal: `apps/api/test/integration/chat.test.ts` (test de typing por polling) era racy — el primer GET devolvía la presencia encolada antes de que el POST de `typing:set` terminara su revalidación de sesión en DB. Ahora repite la lectura hasta ver `typing:updated` o 8 s. Sin cambios de producto; verificado con script de reproducción (sin espera falla, con espera recibe).
+- `npm run verify:local`: **154/154**, cero omisiones (contratos 6, base 6, backend unitarias 25, frontend 65 en 10 archivos, API PostgreSQL 49, runtime PostgreSQL/WebSocket 3); tipos y builds OK. Fotos privadas: envío invitado→admin por socket/historial/descarga sin EXIF, idempotencia 409, rechazos CSRF/Origin/anónimo/SVG/corruptos/tamaño, borrado elimina bytes sin resurrección. Stickers: selector, confirmación, borrador conservado, historial/lectura/borrado, desconocidos como texto.
+- Limitaciones: verificado contra PostgreSQL exclusivo de QA, no mensajes de producción. Despliegue al VPS (build/compose `api web`) pendiente desde este entorno sin acceso SSH; no se declara publicado. Revisión visual en navegador pendiente.
