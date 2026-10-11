@@ -1,0 +1,116 @@
+name: Deploy
+
+# Se ejecuta sólo cuando el workflow CI termina en verde sobre main
+# (fail-safe: si las pruebas fallan, este deploy no se ejecuta).
+# Efecto equivalente a "push a main condicionado a CI verde", pero sin
+# la carrera de lanzar el deploy en paralelo al CI.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # workflow_run: sólo si CI pasó y el commit es de main.
+    # workflow_dispatch: permite reintento manual del operador.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    name: deploy to Atlantic.net VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Setup SSH key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy over SSH
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key \
+            -p "${SSH_PORT}" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=accept-new \
+            "${SSH_USER}@${SSH_HOST}" <<'DEPLOY_EOF'
+          set -euo pipefail
+
+          DEPLOY_DIR=/opt/private-chat
+          COMPOSE="docker compose -f compose.yaml -f compose.atlantic.yaml"
+          CADDY_CONTAINER="${CADDY_CONTAINER:-artisanalbrew-caddy-1}"
+          CADDY_FILE=/opt/artisanalbrew/Caddyfile
+
+          echo "== push-to-deploy: $(date -u +%FT%TZ) =="
+
+          # Directorio propio del chat; nunca tocar /opt/artisanalbrew salvo el
+          # bloque de Caddy documentado más abajo. Nunca reiniciar el VPS.
+          cd "$DEPLOY_DIR"
+
+          # Falla si el historial local divergió (el operador lo resuelve a mano).
+          git pull --ff-only origin main
+
+          # Construir imágenes del chat (api, web interna :8080, bootstrap).
+          $COMPOSE --profile tools build api web bootstrap
+
+          # Asegurar base de datos y permisos de volúmenes propios.
+          $COMPOSE up -d postgres storage-init
+
+          # Migraciones + provisión idempotente (no cambia cuentas existentes).
+          # PROHIBIDO: docker compose down -v (borraría volúmenes con datos).
+          $COMPOSE --profile tools run --rm bootstrap
+
+          # Levantar servicios del chat (red Docker propia + red externa caddy).
+          $COMPOSE up -d api web
+
+          # Salud del API desde dentro del contenedor: en el overlay Atlantic
+          # el API no publica puertos al host, así que el chequeo se ejecuta
+          # con `exec` contra su loopback interno (endpoint real: /api/ready).
+          READY_OK=0
+          for i in $(seq 1 24); do
+            if $COMPOSE exec -T api node -e "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+              READY_OK=1
+              break
+            fi
+            echo "waiting for api ready... attempt $i/24"
+            sleep 5
+          done
+          if [ "$READY_OK" != "1" ]; then
+            echo "ERROR: api /api/ready no respondió tras 120s" >&2
+            $COMPOSE ps
+            exit 1
+          fi
+          echo "api ready OK"
+
+          # Publicar marthi.alexisrs.dev en el proxy EXISTENTE sin tocar las
+          # rutas de cafe.alexisreyna.dev: sólo se añade el bloque una vez y
+          # se recarga configuración (nunca restart del proxy ni del VPS).
+          if grep -q "marthi.alexisrs.dev" "$CADDY_FILE"; then
+            echo "caddy block already present, skipping append"
+          else
+            cat infra/Caddyfile.atlantic >> "$CADDY_FILE"
+            echo "caddy block appended"
+          fi
+          docker exec "$CADDY_CONTAINER" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          docker exec "$CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile
+
+          $COMPOSE ps
+          echo "== deploy OK =="
+          DEPLOY_EOF
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
