@@ -49,7 +49,6 @@ import { processChatPhoto } from "../photo.js";
 import { replaceAvatar } from "../avatar-storage.js";
 import { applyConversationClear, applyMessageDeletion, lockConversation } from "../deletions.js";
 import { appendJournalEntry, type JournalEntry } from "../deletion-journal.js";
-import { notifyNewMessage, sendSmtpMail, type SendMailFn } from "../notify.js";
 import {
   MAX_PUSH_SUBSCRIPTIONS_PER_USER,
   notifyPushNewMessage,
@@ -61,8 +60,6 @@ import { RealtimeHub } from "../realtime.js";
 export interface BuildAppOptions {
   config: AppConfig;
   db: PrismaClient;
-  /** Transporte SMTP inyectable (pruebas). Por defecto el cliente real. */
-  notifySendMail?: SendMailFn;
   /** Transporte push inyectable (pruebas). Por defecto fetch al push service. */
   pushFetchFn?: PushFetchFn;
 }
@@ -154,7 +151,6 @@ function zodDetails(error: unknown): string | undefined {
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
   const { config, db } = options;
-  const notifySendMail = options.notifySendMail ?? sendSmtpMail;
   const pushFetchFn = options.pushFetchFn;
   const app: FastifyInstance = Fastify({
     logger: {
@@ -914,19 +910,6 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       const result = await send();
       if (result.created) {
         app.hub?.messageCreated(result.message);
-        // Avisador por correo (opcional, fuera del DTO): no bloquea la
-        // respuesta ni registra contenido. Los reintentos idempotentes
-        // (200) no reenvían el aviso.
-        void notifyNewMessage({ config, db, sendMail: notifySendMail, message: result.message, senderId: userId })
-          .then((outcome) => {
-            if (!outcome.sent && outcome.reason !== "disabled" && outcome.reason !== "no-recipient-email") {
-              app.log.warn(`Aviso por correo omitido (${outcome.reason})`);
-            }
-          })
-          .catch((err: unknown) => {
-            const detail = err instanceof Error ? err.message : "error desconocido";
-            app.log.error(`No se pudo enviar el aviso por correo: ${detail}`);
-          });
         // Push genérico (contrato v5, opcional, fuera del DTO): push vacío,
         // sin texto ni remitente. No bloquea la respuesta ni registra
         // contenido o endpoints. Los reintentos idempotentes no reenvían.
