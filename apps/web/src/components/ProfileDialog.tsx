@@ -6,9 +6,13 @@ import { updateProfile, type ApiFailure } from '../lib/api';
 import { useSession } from '../state/session';
 import { AvatarView } from './AvatarView';
 import { PinChangeForm } from './PinChangeForm';
+import { ThemePicker } from './ThemePicker';
+import type { ThemeId } from '../lib/themes';
 
-export function ProfileDialog({ me, avatarOpen, onOpenAvatar, onClose }: {
+export function ProfileDialog({ me, theme, onChooseTheme, avatarOpen, onOpenAvatar, onClose }: {
   me: PublicUser;
+  theme: ThemeId;
+  onChooseTheme: (theme: ThemeId) => void;
   avatarOpen: boolean;
   onOpenAvatar: () => void;
   onClose: () => void;
@@ -142,6 +146,8 @@ export function ProfileDialog({ me, avatarOpen, onOpenAvatar, onClose }: {
         <div className="mt-4">
           <PinChangeForm />
         </div>
+
+        <ThemePicker theme={theme} onChange={onChooseTheme} />
 
         <button type="button" onClick={() => void logout()} disabled={busy}
           className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-surface-muted text-sm font-semibold text-ink hover:bg-surface-hover disabled:opacity-60">

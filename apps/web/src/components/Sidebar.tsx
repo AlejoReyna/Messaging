@@ -1,15 +1,14 @@
-import { LogOut, MessageCircle, Settings2 } from 'lucide-react';
+import { LogOut, MessageCircle } from 'lucide-react';
 import type { PublicUser } from '@private-chat/contracts';
 import { AvatarView } from './AvatarView';
 
 export function Sidebar({
-  me, partner, unread, onOpenConversation, onOpenSettings, onOpenAvatar, onLogout, busy,
+  me, partner, unread, onOpenConversation, onOpenAvatar, onLogout, busy,
 }: {
   me: PublicUser;
   partner: PublicUser | null;
   unread: number;
   onOpenConversation: () => void;
-  onOpenSettings: () => void;
   onOpenAvatar: () => void;
   onLogout: () => void;
   busy: boolean;
@@ -47,15 +46,6 @@ export function Sidebar({
       </nav>
 
       <div className="mt-auto flex flex-col items-center gap-2">
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          aria-label="Abrir ajustes y perfil"
-          title="Ajustes"
-          className={iconButton}
-        >
-          <Settings2 className="h-5 w-5" aria-hidden="true" />
-        </button>
         <button
           type="button"
           onClick={onLogout}

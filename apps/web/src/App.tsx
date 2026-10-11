@@ -8,7 +8,7 @@ import { ChatPanel } from './components/ChatPanel';
 import { ProfileDialog } from './components/ProfileDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { AvatarEditor } from './components/AvatarEditor';
-import { useTheme } from './lib/themes';
+import { DEFAULT_THEME, MEMBER_DEFAULT_THEME, useTheme } from './lib/themes';
 
 function Shell() {
   const session = useSession();
@@ -16,8 +16,11 @@ function Shell() {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
   const closeAvatar = useCallback(() => setAvatarOpen(false), []);
-  // Aplica el tema guardado de la cuenta (sin selector visible).
-  useTheme(session.user?.id);
+  // Tema guardado de la cuenta; se expone en el diálogo de ajustes.
+  const { theme, chooseTheme } = useTheme(
+    session.user?.id,
+    session.user?.role === 'member' ? MEMBER_DEFAULT_THEME : DEFAULT_THEME,
+  );
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
@@ -107,7 +110,6 @@ function Shell() {
         partner={chat.partner}
         unread={unread}
         onOpenConversation={() => document.getElementById('composer')?.focus()}
-        onOpenSettings={() => setSettingsOpen(true)}
         onOpenAvatar={() => setAvatarOpen(true)}
         onLogout={() => void session.logout()}
         busy={session.busy}
@@ -167,7 +169,7 @@ function Shell() {
         />
       </div>
 
-      {settingsOpen && <ProfileDialog me={me}
+      {settingsOpen && <ProfileDialog me={me} theme={theme} onChooseTheme={chooseTheme}
         avatarOpen={avatarOpen} onOpenAvatar={() => setAvatarOpen(true)} onClose={closeSettings} />}
       {avatarOpen && <AvatarEditor me={me} csrfToken={session.csrfToken}
         onSaved={session.setUser} onClose={closeAvatar} />}

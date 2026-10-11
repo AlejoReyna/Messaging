@@ -4,7 +4,7 @@ import type { PublicUser } from '@private-chat/contracts';
 import { AvatarEditor } from './AvatarEditor';
 import { ThemePicker } from './ThemePicker';
 import { ProfileDialog } from './ProfileDialog';
-import { DEFAULT_THEME, useTheme } from '../lib/themes';
+import { DEFAULT_THEME, THEMES, useTheme } from '../lib/themes';
 
 const me: PublicUser = {
   id: '11111111-1111-4111-8111-111111111111', username: 'adminqa', displayName: 'Marthiel',
@@ -105,7 +105,7 @@ describe('vista previa del avatar', () => {
 
 describe('personalización por cuenta', () => {
   it('el lápiz enfoca el nombre y guardar modifica únicamente el perfil propio con CSRF', async () => {
-    render(<ProfileDialog me={me} avatarOpen={false}
+    render(<ProfileDialog me={me} theme="github-light" onChooseTheme={vi.fn()} avatarOpen={false}
       onOpenAvatar={vi.fn()} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Editar nombre de Marthiel' }));
     const name = screen.getByRole('textbox', { name: 'Nombre visible' });
@@ -121,10 +121,17 @@ describe('personalización por cuenta', () => {
     expect(JSON.parse(options.body)).toEqual({ displayName: 'Marthiel Actualizado' });
   });
 
-  it('muestra exactamente diez temas seleccionables', () => {
+  it('el diálogo de ajustes expone el selector de temas', () => {
+    render(<ProfileDialog me={me} theme="github-light" onChooseTheme={vi.fn()} avatarOpen={false}
+      onOpenAvatar={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByRole('group', { name: 'Elige el tema del chat' })).toBeInTheDocument();
+    expect(screen.getAllByRole('radio')).toHaveLength(THEMES.length);
+  });
+
+  it('muestra todos los temas seleccionables del catálogo', () => {
     const onChange = vi.fn();
     render(<ThemePicker theme="github-light" onChange={onChange} />);
-    expect(screen.getAllByRole('radio')).toHaveLength(10);
+    expect(screen.getAllByRole('radio')).toHaveLength(THEMES.length);
     fireEvent.click(screen.getByRole('radio', { name: /Dracula/ }));
     expect(onChange).toHaveBeenCalledWith('dracula');
   });
