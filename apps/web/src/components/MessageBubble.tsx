@@ -181,7 +181,9 @@ export function MessageBubble({
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
         className={`relative max-w-[82%] rounded-lg text-[17px] leading-[1.45] shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] sm:max-w-[70%] ${
-          sticker ? 'border border-transparent bg-transparent px-0 py-0 shadow-none' : hasPhoto ? `border p-1.5 ${bubbleBg}` : `border px-3 py-2 ${bubbleBg}`
+          // pr-10 en burbujas de texto: reserva ~32px del chevron + margen para que
+          // la hora no quede debajo del botón en mensajes cortos de una línea.
+          sticker ? 'border border-transparent bg-transparent px-0 py-0 shadow-none' : hasPhoto ? `border p-1.5 ${bubbleBg}` : `border py-2 pl-3 pr-10 ${bubbleBg}`
         }${animate ? (mine ? ' enter-pop-mine' : ' enter-pop-theirs') : ''}`}
       >
         {/* Cola estilo WhatsApp (sólo burbujas con fondo). */}
@@ -190,9 +192,17 @@ export function MessageBubble({
           : <span aria-hidden="true" className="absolute -left-2 top-0 h-0 w-0 border-b-0 border-l-8 border-r-0 border-t-8 border-l-transparent border-t-surface" />
         )}
 
-        {/* Chevron estilo WhatsApp Web: aparece al hover, siempre visible en táctil. */}
-        <span className={`pointer-events-none absolute right-0 top-0 z-10 rounded-tr-lg pb-1.5 pl-8 pr-1.5 pt-1 ${
-          sticker ? 'bg-none' : mine ? 'bg-gradient-to-l from-accent-soft from-60% to-transparent' : 'bg-gradient-to-l from-surface from-60% to-transparent'
+        {/* Chevron estilo WhatsApp Web: aparece al hover, siempre visible en táctil.
+            El gutter es transparente y estrecho para no tapar la hora; sólo muestra
+            degradado cuando el menú está abierto (y ocupa el padding reservado). */}
+        <span className={`message-menu-gutter pointer-events-none absolute right-0 top-0 z-10 rounded-tr-lg p-1 ${
+          menuOpen
+            ? sticker
+              ? 'bg-none'
+              : mine
+                ? 'bg-gradient-to-l from-accent-soft from-60% to-transparent'
+                : 'bg-gradient-to-l from-surface from-60% to-transparent'
+            : 'bg-transparent'
         }`}>
           <button
             type="button"
@@ -273,7 +283,8 @@ export function MessageBubble({
             </div>
           </div>
         ) : (!message.photoUrl || hasCaption) && (
-          <p className="whitespace-pre-wrap break-words px-0.5" lang="es">{message.body}<MetaInline createdAt={message.createdAt} mine={mine} read={read} animate={animate} /></p>
+          // En fotos con pie, el bubble es p-1.5 sin reserva: el pr-8 del pie evita que el chevron lo tape.
+          <p className={`whitespace-pre-wrap break-words px-0.5${hasPhoto ? ' pr-8' : ''}`} lang="es">{message.body}<MetaInline createdAt={message.createdAt} mine={mine} read={read} animate={animate} /></p>
         )}
       </div>
     </div>
