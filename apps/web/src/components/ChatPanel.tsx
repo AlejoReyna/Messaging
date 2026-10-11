@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { ArrowLeft, Eraser, MoreVertical, WifiOff } from 'lucide-react';
+import { ArrowLeft, Eraser, Github, Settings, Volume2, VolumeX, WifiOff } from 'lucide-react';
 import type { Message, PublicUser } from '@private-chat/contracts';
 import type { PendingMessage } from '../lib/store';
+import { playHalo, useSoundEnabled } from '../lib/sound';
 import { formatDay } from '../lib/format';
 import { AvatarView } from './AvatarView';
 import { Composer } from './Composer';
@@ -51,8 +52,13 @@ export function ChatPanel({
   // paginación aparecen fijos, como en WhatsApp.
   const readyRef = useRef(false);
   const maxSeenRef = useRef(0);
+  // Halo bajito, desactivable, por cuenta en este navegador. Activado por defecto.
+  const { enabled: soundOn, toggle: toggleSound } = useSoundEnabled(me.id);
+  const soundOnRef = useRef(soundOn);
+  soundOnRef.current = soundOn;
 
   // Registra el máximo sequence ya pintado; lo nuevo (sequence mayor) anima.
+  // Si lo nuevo trae mensaje de la pareja, suena el halo una vez (bajito).
   useEffect(() => {
     if (loading) return;
     const last = messages[messages.length - 1];
@@ -62,8 +68,12 @@ export function ChatPanel({
       maxSeenRef.current = Math.max(maxSeenRef.current, mx);
       return;
     }
-    if (mx > maxSeenRef.current) maxSeenRef.current = mx;
-  }, [messages, loading]);
+    if (mx > maxSeenRef.current) {
+      const fresh = messages.some((m) => m.sequence > maxSeenRef.current && m.senderId !== me.id);
+      maxSeenRef.current = mx;
+      if (fresh && soundOnRef.current) playHalo();
+    }
+  }, [messages, loading, me.id]);
 
   // Scroll al fondo sólo cuando corresponde (estábamos abajo o llegó mensaje propio).
   // La burbuja de "escribiendo" también baja la vista si estábamos abajo.
@@ -164,6 +174,20 @@ export function ChatPanel({
           </div>
         )}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const wasOff = !soundOnRef.current;
+              toggleSound();
+              if (wasOff) playHalo();
+            }}
+            aria-label={soundOn ? 'Silenciar sonido de notificación' : 'Activar sonido de notificación'}
+            aria-pressed={soundOn}
+            title={soundOn ? 'Silenciar notificaciones' : 'Activar sonido (halo bajito)'}
+            className="inline-grid min-h-[44px] min-w-[44px] place-items-center rounded-full text-muted transition-all duration-200 hover:scale-105 hover:bg-surface-hover hover:text-ink active:scale-95"
+          >
+            {soundOn ? <Volume2 className="h-5 w-5" aria-hidden="true" /> : <VolumeX className="h-5 w-5" aria-hidden="true" />}
+          </button>
           {!connected && (
             <span role="status" className="enter-down inline-flex items-center gap-1 rounded-full bg-surface-muted px-3 py-1.5 text-xs font-semibold text-muted">
               <WifiOff className="h-3.5 w-3.5" aria-hidden="true" /> Reconectando
@@ -186,8 +210,18 @@ export function ChatPanel({
             aria-label="Abrir ajustes y perfil"
             className="inline-grid min-h-[44px] min-w-[44px] place-items-center rounded-full text-muted transition-all duration-200 hover:scale-105 hover:bg-surface-hover hover:text-ink active:scale-95"
           >
-            <MoreVertical className="h-5 w-5" aria-hidden="true" />
+            <Settings className="h-5 w-5" aria-hidden="true" />
           </button>
+          <a
+            href="https://github.com/AlejoReyna/Messaging"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Abrir repositorio en GitHub"
+            title="GitHub"
+            className="inline-grid min-h-[44px] min-w-[44px] place-items-center rounded-full text-muted transition-all duration-200 hover:scale-105 hover:bg-surface-hover hover:text-ink active:scale-95 md:hidden"
+          >
+            <Github className="h-5 w-5" aria-hidden="true" />
+          </a>
         </div>
       </header>
 

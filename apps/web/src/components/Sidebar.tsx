@@ -1,4 +1,4 @@
-import { LogOut, MessageCircle } from 'lucide-react';
+import { Github, LogOut, MessageCircle } from 'lucide-react';
 import type { PublicUser } from '@private-chat/contracts';
 import { AvatarView } from './AvatarView';
 
@@ -43,6 +43,19 @@ export function Sidebar({
           <MessageCircle className="h-5 w-5" aria-hidden="true" />
           {unread > 0 && <span aria-hidden="true" className="absolute right-2 top-2 h-2 w-2 animate-pulse rounded-full bg-success" />}
         </button>
+      </nav>
+
+      <nav aria-label="Repositorio del proyecto" className="mt-2">
+        <a
+          href="https://github.com/AlejoReyna/Messaging"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Abrir repositorio en GitHub"
+          title="GitHub"
+          className={iconButton}
+        >
+          <Github className="h-5 w-5" aria-hidden="true" />
+        </a>
       </nav>
 
       <div className="mt-auto flex flex-col items-center gap-2">
