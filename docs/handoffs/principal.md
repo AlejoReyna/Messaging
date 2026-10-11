@@ -100,3 +100,11 @@ Petición del usuario: carita UwU en lineart al centro del historial vacío, ton
 - Corrección del principal: `apps/api/test/integration/chat.test.ts` (test de typing por polling) era racy — el primer GET devolvía la presencia encolada antes de que el POST de `typing:set` terminara su revalidación de sesión en DB. Ahora repite la lectura hasta ver `typing:updated` o 8 s. Sin cambios de producto; verificado con script de reproducción (sin espera falla, con espera recibe).
 - `npm run verify:local`: **154/154**, cero omisiones (contratos 6, base 6, backend unitarias 25, frontend 65 en 10 archivos, API PostgreSQL 49, runtime PostgreSQL/WebSocket 3); tipos y builds OK. Fotos privadas: envío invitado→admin por socket/historial/descarga sin EXIF, idempotencia 409, rechazos CSRF/Origin/anónimo/SVG/corruptos/tamaño, borrado elimina bytes sin resurrección. Stickers: selector, confirmación, borrador conservado, historial/lectura/borrado, desconocidos como texto.
 - Limitaciones: verificado contra PostgreSQL exclusivo de QA, no mensajes de producción. Despliegue al VPS (build/compose `api web`) pendiente desde este entorno sin acceso SSH; no se declara publicado. Revisión visual en navegador pendiente.
+
+## Publicación por CI/CD — 2026-10-11
+
+- El usuario señaló que ya existe CI/CD: cierto y operativo (deploy verde hoy 05:59 UTC). No se usaba porque todo el trabajo vivía sin commitear; el CD despliega desde `origin/main`.
+- Commit `89d4de1` (stickers, fotos, borrado propio, pin-gate, sharp 0.35.5, lockfile regenerado, fix test typing) pusheado a `main`. Se limpiaron las modificaciones rsync del VPS para que `git pull --ff-only` no fallara.
+- CI `38120037620` en verde (node24 + postgres18); Deploy `38120125887` en verde: pull, build api/web/bootstrap, bootstrap (migración 0003 fotos), up, `/api/ready` OK, Caddy intacto.
+- Verificación pública: web 200 con bundle nuevo (40 marcadores chiikawa, PNG servido 200), `/api/ready` 200, historial y foto anónimos 401, `api` healthy recién recreado, `postgres` intacto (2 h activo, sin pérdida de datos). VPS en `89d4de1` limpio.
+- Nota: el deploy manual por rsync quedó descartado a favor del flujo CI/CD; las imágenes locales del build manual fueron reemplazadas por las del CD.

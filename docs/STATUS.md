@@ -49,3 +49,7 @@ Vista circular ampliada al pulsar la foto del contacto, con el mismo contenedor 
 ## Stickers y fotos — 2026-10-11
 
 Stickers Chiikawa (40, selector con preview/Enviar, borrador conservado) y fotos por mensaje (icono, preview, texto opcional, ampliación) verificados: `npm run verify:local` **154/154**, cero omisiones. Se corrigió el test de typing por polling (racy, sin cambios de producto). Despliegue al VPS pendiente; revisión visual en navegador pendiente.
+
+## Publicación CI/CD — 2026-10-11
+
+Commit `89d4de1` publicado por el flujo CI/CD (CI + Deploy verdes): stickers, fotos, borrado propio y migración 0003 en producción, web/ready 200 y base de datos intacta.
