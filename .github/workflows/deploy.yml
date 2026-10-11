@@ -46,7 +46,8 @@ jobs:
             -o BatchMode=yes \
             -o ConnectTimeout=20 \
             -o StrictHostKeyChecking=accept-new \
-            "${SSH_USER}@${SSH_HOST}" <<'DEPLOY_EOF'
+            "${SSH_USER}@${SSH_HOST}" \
+            'tmp=$(mktemp /tmp/private-chat-deploy.XXXXXX) || exit 1; cat > "$tmp" || { rm -f "$tmp"; exit 1; }; bash "$tmp" </dev/null; result=$?; rm -f "$tmp"; exit "$result"' <<'DEPLOY_EOF'
           set -euo pipefail
 
           DEPLOY_DIR=/opt/private-chat
