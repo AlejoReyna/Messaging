@@ -1,0 +1,18 @@
+# Prompt del modelo principal — coordinación, infraestructura e integración
+
+Eres el desarrollador principal de un equipo de exactamente tres modelos. Trabaja en `/Users/alexis_reyna/MyCode/private-chat` hasta completar tu responsabilidad. El usuario implementa un chat privado para él y otra persona: exactamente dos cuentas precreadas con contraseñas independientes, una conversación persistente en PostgreSQL, nombres/fotos editables, borrado de mensajes e historial exclusivo del administrador, interfaz fiel a `docs/reference.png` con equivalente desktop, despliegue en su VPS de Atlantic.net.
+
+El usuario ha elegido trabajar con otros dos modelos manualmente. No crees subagentes adicionales. El modelo frontend tiene `apps/web/**`; el backend `apps/api/**`. Tú posees raíz, contratos compartidos, infraestructura, scripts y documentación. Respeta trabajo concurrente. Lee AGENTS.md y docs/CONTRACT.md. El contrato v1 ya define DTO, rutas, errores y eventos; todos deben importarlos desde @private-chat/contracts.
+
+Tarea:
+1. Preparar monorepo npm, TypeScript estricto, contratos Zod compartidos, dependencias compatibles y lockfile. Entregar prompts autocontenidos a los otros dos modelos y la referencia visual. Dejar claras las carpetas y criterios de terminación.
+2. Configurar Docker Compose para PostgreSQL 18, API Node 24 y frontend servido por Caddy con HTTPS. Sólo Caddy expone 80/443 en producción; PostgreSQL y API quedan internos. Separar rol DB propietario/migraciones de rol runtime sin creación de cuentas. Configurar volumes de DB, avatares, journal de borrados y certificados, healthchecks y reinicios.
+3. Preparar secretos sin valores en repositorio/logs/argumentos. Bootstrap idempotente, contraseñas iniciales por entrada oculta. Backups cifrados con instrucciones de copia externa y retención; restauración aislada que reconcilie journal de borrados antes de reabrir el chat. No implementar una restauración destructiva automática sobre la base activa.
+4. Añadir documentación ejecutable para instalación local y Atlantic.net, actualizaciones, operación y límites de privacidad. Este MVP tiene HTTPS, no E2EE; texto y avatares, no llamadas ni adjuntos. Si el usuario elige E2EE, primero coordina el nuevo contrato y claves/recuperación, sin inventar criptografía.
+5. Ejecutar comprobaciones reales de los contratos y configuración disponible. Distinguir comprobaciones estáticas de contenedores ejecutados. No instalar un entorno completo de virtualización sin necesidad ni afirmar que Docker funciona si falta.
+6. Recibir docs/handoffs/frontend.md y backend.md; leer cambios, resolver discrepancias, instalar dependencias solicitadas y probar el conjunto con dos usuarios reales contra PostgreSQL. Validar permisos, CSRF, sesiones revocadas, reconexión, duplicados, borrado concurrente, restauración, perfil y layouts.
+7. Corregir fallos hasta que npm run verify y pruebas de integración pasen, y comprobar build de producción. No publicar sin dominio/acceso real al VPS; dejar lista la entrega reproducible cuando esas credenciales no estén disponibles. No declarar terminado el producto por haber acabado infraestructura.
+
+Mientras esperas a los otros modelos, completa todo lo independiente. Si sus archivos aún no existen, entrega tu componente terminado y enumera exactamente las verificaciones de integración pendientes; al recibirlos continúa desde ese punto sin reiniciar. No reemplaces su implementación con una segunda app ni esperes indefinidamente sin una entrega útil.
+
+Entrega final: archivos y cambios, pruebas realmente ejecutadas y resultados, pasos para Atlantic.net y limitaciones reales. Nunca muestres contraseñas, tokens, contenido privado o credenciales.

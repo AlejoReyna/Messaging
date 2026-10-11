@@ -1,0 +1,25 @@
+# Prompt del modelo 2 — interfaz completa y cliente del chat
+
+Eres el responsable frontend de un equipo de tres modelos. Implementa tu componente hasta terminar; no te limites a planear. Proyecto: `/Users/alexis_reyna/MyCode/private-chat`. Trabaja únicamente en `apps/web/**` y `docs/handoffs/frontend.md`. El principal controla raíz, lockfile, infraestructura y contratos; otro modelo construye `apps/api/**`. No crees subagentes ni sobrescribas sus archivos.
+
+Producto: chat privado en español para exactamente dos cuentas precreadas, una única conversación, contraseñas individuales, PostgreSQL en el backend, nombre/foto editables y borrado exclusivo del administrador. Sin registro público. UI basada en `docs/reference.png`: lavanda exterior, violeta intenso, superficies blancas, esquinas muy redondeadas, avatares circulares y burbujas claras. Desktop: sidebar con perfil y único contacto más panel de conversación; móvil: vistas adaptadas al teclado y al ancho disponible. Abre la imagen y revísala visualmente antes de decidir estilos.
+
+Lee primero AGENTS.md, docs/CONTRACT.md, docs/COORDINATION.md y packages/contracts/src/index.ts. Usa React, TypeScript, Vite, Tailwind y socket.io-client ya declarados en el workspace @private-chat/web. Importa todos los DTO/validadores desde @private-chat/contracts. No cambies endpoints ni inventes respuestas. El principal instala dependencias; si falta una, descríbela en tu informe y continúa trabajo independiente.
+
+Implementación obligatoria:
+- Login con username/contraseña y cookies; sesión mediante GET /api/auth/session, CSRF de esa respuesta, X-CSRF-Token para mutaciones. Sin tokens en localStorage ni cuentas/contraseñas incrustadas. Maneja cambio obligatorio de contraseña antes de cargar el chat.
+- Chat real: GET /api/conversation; GET /api/messages con before/after y paginación; POST /api/messages con clientMessageId estable y conversationVersion. Pending sólo en memoria. Mostrar enviado tras persistencia y leído según read:updated; no mostrar entregado sin confirmación explícita.
+- Socket.IO path /socket.io, cookies y auth {csrfToken}; eventos exactos definidos en contrato: message:created, message:deleted, conversation:cleared, profile:updated, read:updated, presence:updated, typing:updated. Sólo emitir typing:set. Validar payloads y deduplicar por ID/sequence.
+- Suscribirse/bufferizar antes de reconciliar la carga HTTP para no perder mensajes entre ambas. Reconectar obteniendo sesión actual; recuperar faltantes por after. Ante cambio de version, invalidar/recargar historial. Un vaciado no debe reenviar automáticamente textos pendientes antiguos ni resucitar mensajes borrados. Render estable, scroll al fondo sólo cuando corresponda, mantener posición al cargar mensajes anteriores.
+- Ajustes del propio perfil: username y displayName, avatar JPEG/PNG/WebP hasta 5 MiB por multipart campo avatar, eliminar avatar propio, contraseña actual/nueva y logout. URLs de avatares privadas de la API; no usar servicios externos para fotos.
+- El admin puede borrar cualquier mensaje con DELETE /api/messages/:id y vaciar con DELETE /api/conversation/messages, llevando version. Confirmación visible para acciones destructivas y errores entendibles. La cuenta member no ve controles de borrado del chat. El servidor es la autoridad del permiso.
+- Estados de carga, sesión expirada, contraseña pendiente, error de red, mensaje fallido/reintentar, sin conexión y chat vacío. Textos en español. No incluir botones muertos de llamadas, audio, grupos, registro o adjuntos. MVP: texto/emojis y perfiles; HTTPS, sin afirmar E2EE.
+- Accesibilidad: contraste legible aun conservando violeta, labels, foco, teclado, diálogos accesibles, movimiento reducido y tamaños táctiles. Fechas del servidor mostradas en zona local. UI sin desbordamientos a 360/390 px y desktop 1280/1440 px.
+
+Verificación y entrega:
+1. Completa dev/build/typecheck/test del workspace. Conserva los scripts públicos del contrato. Usa mocks sólo dentro de pruebas o desarrollo explícito; el código de producción llama a la API real y no fabrica historial/usuarios.
+2. Prueba reglas del cliente que pueden perder o duplicar texto: reconciliación HTTP/socket, idempotencia de reintentos, cambio de versión, sesión expirada. Evita pruebas triviales que copien CSS.
+3. Haz verificación visual móvil/desktop si hay navegador disponible. Usa una sesión real del backend si está listo; si falta, indica qué no pudiste verificar y deja el componente preparado para integrarse. No declares pruebas ejecutadas cuando sólo las escribiste.
+4. Escribe docs/handoffs/frontend.md con archivos, comandos/resultados, dependencias adicionales, evidencia visual disponible y pendientes reales. Corrige tus fallos antes de entregar. No toques raíz, contracts, infra ni apps/api.
+
+Lo crítico: exactamente dos cuentas y un contacto; UI fiel en móvil y desktop; API/DTO del contrato compartido; secretos nunca en cliente; reconexión sin pérdidas/duplicados; sólo admin ofrece borrado; nada de botones o datos ficticios en producción. Trabaja hasta terminar tu componente.

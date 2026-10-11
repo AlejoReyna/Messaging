@@ -1,0 +1,26 @@
+{$DOMAIN} {
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        X-Frame-Options "DENY"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self' wss://{$DOMAIN}; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    }
+
+    @api path /api /api/* /socket.io /socket.io/*
+    handle @api {
+        request_body {
+            max_size 6MB
+        }
+        reverse_proxy api:3000
+    }
+
+    handle {
+        root * /srv
+        @html path / /index.html
+        header @html Cache-Control "no-store"
+        try_files {path} /index.html
+        file_server
+    }
+}

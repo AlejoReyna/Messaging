@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import {
+  SendMessageInputSchema, UpdateProfileInputSchema, PublicUserSchema,
+  MessagesQuerySchema, MessagesPageSchema, NewPasswordSchema, ChangePasswordInputSchema,
+  MessageDeletedEventSchema, TypingSetInputSchema, ApiErrorSchema,
+} from '../dist/index.js';
+
+const id = '11111111-1111-4111-8111-111111111111';
+const user = {
+  id, username: 'admin', displayName: 'Mi perfil', role: 'admin', avatarUrl: null,
+  avatarVersion: 0, mustChangePassword: true, updatedAt: '2026-10-10T12:00:00.000Z',
+};
+
+test('el cliente no puede inyectar autor, rol o campos de identidad al enviar/editar', () => {
+  assert.equal(SendMessageInputSchema.safeParse({ clientMessageId: id, body: 'Hola', conversationVersion: 1, senderId: id }).success, false);
+  assert.equal(UpdateProfileInputSchema.safeParse({ role: 'admin' }).success, false);
+  assert.equal(UpdateProfileInputSchema.safeParse({ username: 'Nuevo.Nombre' }).data?.username, 'nuevo.nombre');
+  assert.equal(UpdateProfileInputSchema.safeParse({}).success, false);
+});
+
+test('el DTO público rechaza secretos y URLs externas de avatar', () => {
+  assert.equal(PublicUserSchema.safeParse(user).success, true);
+  assert.equal(PublicUserSchema.safeParse({ ...user, passwordHash: 'secret' }).success, false);
+  assert.equal(PublicUserSchema.safeParse({ ...user, avatarUrl: 'https://outside.example/avatar' }).success, false);
+  assert.equal(PublicUserSchema.safeParse({ ...user, avatarUrl: `/api/users/${id}/avatar?v=2` }).success, true);
+});
+
+test('cursor válido, dirección única y límite acotado', () => {
+  assert.deepEqual(MessagesQuerySchema.parse({ after: '0' }), { after: 0, limit: 50 });
+  for (const query of [{ before: 2, after: 0 }, { limit: 101 }, { limit: '' }, { before: -1 }, { after: 'oops' }]) {
+    assert.equal(MessagesQuerySchema.safeParse(query).success, false);
+  }
+});
+
+test('rechaza mensajes vacíos, IDs inválidos, controles y versiones inseguras', () => {
+  const valid = { clientMessageId: id, body: 'Hola 👋\n¿Cómo estás?', conversationVersion: 1 };
+  assert.equal(SendMessageInputSchema.safeParse(valid).success, true);
+  for (const patch of [{ body: '   ' }, { body: '\u0000' }, { body: 'a'.repeat(4001) }, { conversationVersion: 0 }, { conversationVersion: Number.MAX_SAFE_INTEGER + 1 }, { clientMessageId: '../secret' }]) {
+    assert.equal(SendMessageInputSchema.safeParse({ ...valid, ...patch }).success, false);
+  }
+});
+
+test('contraseñas conservan espacios y no permiten reutilizar la actual', () => {
+  const password = '  contraseña suficientemente larga  ';
+  assert.equal(NewPasswordSchema.parse(password), password);
+  assert.equal(NewPasswordSchema.safeParse('corta').success, false);
+  assert.equal(ChangePasswordInputSchema.safeParse({ currentPassword: password, newPassword: password }).success, false);
+});
+
+test('páginas y eventos de borrado exigen versión y no aceptan cuerpos de mensajes', () => {
+  assert.equal(MessagesPageSchema.safeParse({ messages: [], hasMore: false, nextCursor: null, conversationVersion: 1 }).success, true);
+  assert.equal(MessagesPageSchema.safeParse({ messages: [], hasMore: false, nextCursor: null }).success, false);
+  assert.equal(MessageDeletedEventSchema.safeParse({ messageId: id, conversationVersion: 2, body: 'No conservar' }).success, false);
+  assert.equal(TypingSetInputSchema.safeParse({ isTyping: true, userId: id }).success, false);
+  assert.equal(ApiErrorSchema.safeParse({ error: { code: 'FORBIDDEN', message: 'No tienes permiso', stack: 'secret' } }).success, false);
+});
