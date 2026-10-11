@@ -14,7 +14,13 @@ export function validateInfrastructure(document) {
     if (Object.keys(service.environment ?? {}).some((key) => /PASSWORD$|SECRET$|DATABASE_URL$/.test(key))) fail(`${name} contiene secretos en environment.`);
   }
   if (!config.networks?.database?.internal) fail('La red de PostgreSQL debe ser interna.');
-  if (services.postgres.networks?.join(',') !== 'database') fail('PostgreSQL debe permanecer en una sola red interna.');
+  const postgresNetworks = services.postgres.networks;
+  const postgresNetworkNames = Array.isArray(postgresNetworks)
+    ? postgresNetworks
+    : typeof postgresNetworks === 'string'
+      ? [postgresNetworks]
+      : Object.keys(postgresNetworks ?? {});
+  if (postgresNetworkNames.join(',') !== 'database') fail('PostgreSQL debe permanecer en una sola red interna.');
   if (services.api.environment.DATABASE_USER !== 'private_chat_app') fail('API debe usar rol runtime.');
   if (services.bootstrap.environment.DATABASE_USER !== 'private_chat_owner') fail('Bootstrap debe usar rol propietario.');
   if (services.bootstrap.environment.RUNTIME_PASSWORD_FILE !== '/run/secrets/db_app_password') fail('Bootstrap debe conceder la contraseña APP al runtime, no la propietaria.');
