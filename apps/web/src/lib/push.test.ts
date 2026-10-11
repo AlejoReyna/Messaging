@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { isPushSupported, urlBase64ToUint8Array } from './push';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { currentBrowserSubscription, ensureServiceWorker, isPushSupported, urlBase64ToUint8Array } from './push';
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('push del navegador (contrato v5)', () => {
   it('decodifica base64url VAPID sin perder bytes', () => {
@@ -11,5 +13,25 @@ describe('push del navegador (contrato v5)', () => {
 
   it('en jsdom no hay soporte push (sin serviceWorker real)', () => {
     expect(isPushSupported()).toBe(false);
+  });
+
+  it('consultar la suscripción registra el worker antes de esperar ready en una instalación nueva', async () => {
+    let activate!: (registration: unknown) => void;
+    const ready = new Promise((resolve) => { activate = resolve; });
+    const getSubscription = vi.fn().mockResolvedValue(null);
+    const registration = { pushManager: { getSubscription } };
+    const register = vi.fn(async () => { activate(registration); return {}; });
+    vi.stubGlobal('navigator', { serviceWorker: { register, ready } });
+    expect(await currentBrowserSubscription()).toBeNull();
+    expect(register).toHaveBeenCalledOnce();
+    expect(getSubscription).toHaveBeenCalledOnce();
+  });
+
+  it('devuelve el worker activo de ready, no uno que aún se está instalando', async () => {
+    const active = { pushManager: {} };
+    vi.stubGlobal('navigator', { serviceWorker: {
+      register: vi.fn().mockResolvedValue({ installing: {} }), ready: Promise.resolve(active),
+    } });
+    expect(await ensureServiceWorker()).toBe(active);
   });
 });

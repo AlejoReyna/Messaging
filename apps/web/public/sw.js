@@ -8,8 +8,8 @@ self.addEventListener('push', function (event) {
   event.waitUntil(
     self.registration.showNotification('Nuevo mensaje', {
       body: 'Tienes un mensaje nuevo en el chat.',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: '/icon-marte-v2-192.png',
+      badge: '/icon-marte-v2-192.png',
       tag: 'private-chat-message',
       renotify: true,
     }),

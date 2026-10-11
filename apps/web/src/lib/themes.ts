@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 
 // Paletas existentes, adaptadas a los roles de color de la conversación.
 // Las fuentes oficiales y los ajustes de contraste están en docs/THEMES.md.
@@ -34,8 +34,15 @@ export function useTheme(userId?: string, preferredDefault: ThemeId = DEFAULT_TH
     setTheme(isTheme(saved) ? saved : preferredDefault);
   }, [key, preferredDefault]);
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.dataset.theme = theme;
+    // Safari's surrounding UI must use the same surface as .chat-header.
+    // Read the CSS token so all palettes stay in sync without a second map.
+    const navbarColor = getComputedStyle(root).getPropertyValue('--color-surface').trim();
+    if (navbarColor) {
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', navbarColor);
+    }
   }, [theme]);
 
   function chooseTheme(next: ThemeId) {

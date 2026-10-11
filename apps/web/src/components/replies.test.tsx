@@ -60,6 +60,8 @@ describe('responder mensajes', () => {
       onDelete={vi.fn()} onReply={onReply} replyAuthorName="Marthiel" onQuoteClick={onQuoteClick} />);
     expect(screen.getByText('Marthiel')).toBeInTheDocument();
     expect(screen.getByText('¿Traes pan integral por favor?')).toBeInTheDocument();
+    // Estilo WhatsApp: Responder vive en el menú de la burbuja.
+    fireEvent.click(screen.getByRole('button', { name: /opciones del mensaje/i }));
     fireEvent.click(screen.getByRole('button', { name: /^Responder mensaje/ }));
     expect(onReply).toHaveBeenCalledExactlyOnceWith(withQuote);
     fireEvent.click(screen.getByRole('button', { name: 'Ver mensaje original de Marthiel' }));
@@ -71,6 +73,7 @@ describe('responder mensajes', () => {
     const view = render(<MessageBubble message={plain} mine read isAdmin={false}
       onDelete={vi.fn()} onReply={vi.fn()} />);
     expect(screen.queryByRole('button', { name: /^Ver mensaje original/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /opciones del mensaje/i }));
     expect(screen.getByRole('button', { name: /^Responder mensaje/ })).toBeInTheDocument();
     view.rerender(<MessageBubble message={plain} mine read isAdmin={false}
       onDelete={vi.fn()} onReply={vi.fn()} />);

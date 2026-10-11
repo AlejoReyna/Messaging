@@ -36,10 +36,11 @@ html, body {
   height: 100%;
   margin: 0;
   overscroll-behavior: none;
+  /* Match the navbar where iOS paints the status bar and viewport edges. */
+  background: var(--color-surface);
 }
 
 body {
-  background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -47,6 +48,7 @@ body {
 
 #root {
   min-height: 100dvh;
+  background: var(--color-canvas);
 }
 
 .chat-header {
@@ -112,8 +114,15 @@ body {
 
 @media (hover: none) {
   .name-edit-icon { opacity: 1; }
-  .message-delete-button { opacity: 1; min-width: 44px; min-height: 44px; }
-  .message-reply-button { opacity: 1; min-width: 44px; min-height: 44px; }
+  .message-menu-trigger { opacity: 1; }
+}
+
+@media (hover: hover) {
+  .message-menu-trigger { opacity: 0; }
+  .group:hover .message-menu-trigger,
+  .group:focus-within .message-menu-trigger,
+  .message-menu-trigger:focus-visible,
+  .message-menu-trigger[aria-expanded="true"] { opacity: 1; }
 }
 
 /* Resaltado breve al saltar a la cita original. */

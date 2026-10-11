@@ -63,12 +63,15 @@ function baseProps(over: Partial<React.ComponentProps<typeof ChatPanel>> = {}) {
 describe('permisos de borrado en el cliente (el servidor es la autoridad)', () => {
   it('el admin ve controles de borrado por mensaje y vaciado', () => {
     render(<ChatPanel {...baseProps({ isAdmin: true })} />);
+    // WhatsApp Web/móvil: las acciones viven en el menú de la burbuja.
+    fireEvent.click(screen.getByRole('button', { name: /opciones del mensaje/i }));
     expect(screen.getByRole('button', { name: /borrar mensaje/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /vaciar conversación/i })).toBeInTheDocument();
   });
 
   it('el member no puede borrar mensajes ajenos ni vaciar el chat', () => {
     render(<ChatPanel {...baseProps({ isAdmin: false, me: user({ role: 'member' }) })} />);
+    fireEvent.click(screen.getByRole('button', { name: /opciones del mensaje/i }));
     expect(screen.queryByRole('button', { name: /borrar mensaje/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /vaciar conversación/i })).not.toBeInTheDocument();
     // El historial sigue visible para el miembro.
@@ -86,6 +89,14 @@ describe('permisos de borrado en el cliente (el servidor es la autoridad)', () =
       body: 'Mi mensaje',
     };
     render(<ChatPanel {...props} messages={[...props.messages, ownMessage]} />);
+    const triggers = screen.getAllByRole('button', { name: /opciones del mensaje/i });
+    expect(triggers).toHaveLength(2);
+    // El mensaje ajeno no ofrece borrado en su menú.
+    fireEvent.click(triggers[0]!);
+    expect(screen.queryByRole('button', { name: /borrar mensaje/i })).not.toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    // El propio sí: menú con “Borrar para ambos” y confirmación posterior.
+    fireEvent.click(triggers[1]!);
     const buttons = screen.getAllByRole('button', { name: /borrar mensaje/i });
     expect(buttons).toHaveLength(1);
     const button = screen.getByRole('button', { name: /borrar mensaje/i });

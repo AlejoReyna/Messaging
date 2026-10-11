@@ -72,9 +72,11 @@ describe('stickers de Chiikawa', () => {
     expect(screen.getByRole('img', { name: `Sticker: ${sticker.label}` })).toHaveAttribute('src', sticker.src);
     expect(screen.getByText('Leído')).toBeInTheDocument();
     expect(screen.queryByText(sticker.body)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /opciones del mensaje/i }));
     fireEvent.click(screen.getByRole('button', { name: /^Borrar mensaje/ }));
     expect(onDelete).toHaveBeenCalledWith(message.id);
     view.rerender(<MessageBubble message={message} mine={false} read={false} isAdmin={false} onDelete={onDelete} onReply={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /opciones del mensaje/i }));
     expect(screen.queryByRole('button', { name: /^Borrar mensaje/ })).not.toBeInTheDocument();
     for (const body of ['[sticker:chiikawa:unknown]', `Texto ${sticker.body}`, `${sticker.body} final`]) {
       view.rerender(<MessageBubble message={{ ...message, body }} mine={false} read={false} isAdmin={false} onDelete={onDelete} onReply={vi.fn()} />);

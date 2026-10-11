@@ -374,7 +374,7 @@ export function ChatPanel({
       </div>
 
       {/* Entrada */}
-      <footer className="chat-footer shrink-0 border-t border-line/70 bg-surface px-4 pb-4 pt-4 sm:px-6 sm:pb-5">
+      <footer className="chat-footer shrink-0 border-t border-line/70 bg-surface px-3 pb-3 pt-3 sm:px-6 sm:pb-5">
         <Composer onSendPhoto={onSendPhoto} onSend={onSend} onTyping={onTyping}
           disabled={loading || !!loadError} replyTo={replyTo} onCancelReply={() => setReplyTo(null)} />
       </footer>

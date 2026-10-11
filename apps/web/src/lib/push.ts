@@ -26,9 +26,8 @@ export function pushPermission(): PushPermission {
 }
 
 export async function ensureServiceWorker(): Promise<ServiceWorkerRegistration> {
-  const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-  await navigator.serviceWorker.ready;
-  return reg;
+  await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
+  return navigator.serviceWorker.ready;
 }
 
 /** Convierte base64url VAPID a bytes para PushManager.subscribe. */
@@ -56,29 +55,35 @@ function toDto(sub: globalThis.PushSubscription): PushSubscriptionDto {
 }
 
 /** Suscripción actual del navegador, si existe. */
-export async function currentBrowserSubscription(): Promise<PushSubscriptionDto | null> {
-  const reg = await navigator.serviceWorker.ready;
+export async function currentBrowserSubscription(registration?: ServiceWorkerRegistration): Promise<PushSubscriptionDto | null> {
+  const reg = registration ?? await ensureServiceWorker();
   const sub = await reg.pushManager.getSubscription();
   return sub ? toDto(sub) : null;
 }
 
 /** Crea la suscripción push (pide permiso con gesto del usuario en iOS). Reutiliza la existente. */
-export async function subscribeBrowserPush(vapidPublicKey: string): Promise<BrowserSubscription> {
-  const permission = await Notification.requestPermission();
+export async function subscribeBrowserPush(
+  vapidPublicKey: string,
+  registration?: ServiceWorkerRegistration,
+): Promise<BrowserSubscription> {
+  // This must run before any network/worker await so iOS sees the user's tap.
+  const permission = Notification.permission === 'granted'
+    ? 'granted'
+    : await Notification.requestPermission();
   if (permission !== 'granted') throw new Error('Permiso de notificaciones denegado.');
-  const reg = await ensureServiceWorker();
+  const reg = registration ?? await ensureServiceWorker();
   const existing = await reg.pushManager.getSubscription();
   if (existing) return { dto: toDto(existing), fresh: false };
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as unknown as ArrayBuffer,
+    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey).buffer as ArrayBuffer,
   });
   return { dto: toDto(sub), fresh: true };
 }
 
 /** Cancela la suscripción de este navegador. Devuelve el endpoint cancelado, si había. */
 export async function unsubscribeBrowserPush(): Promise<string | null> {
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await ensureServiceWorker();
   const sub = await reg.pushManager.getSubscription();
   if (!sub) return null;
   const endpoint = toDto(sub).endpoint;

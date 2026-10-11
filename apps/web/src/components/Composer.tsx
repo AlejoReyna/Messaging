@@ -100,8 +100,8 @@ export function Composer({
         <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface-muted px-3 py-2" aria-label={`Respondiendo a ${replyTo.author}`}>
           <Reply className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
           <div className="min-w-0 flex-1 border-l-2 border-accent pl-2">
-            <p className="truncate text-xs font-bold text-accent">{replyTo.author}</p>
-            <p className="truncate text-sm text-muted">{snippetOf(replyTo.message.body, replyTo.message.photoUrl)}</p>
+            <p className="truncate text-[14px] font-bold text-accent">{replyTo.author}</p>
+            <p className="truncate text-[15px] text-muted">{snippetOf(replyTo.message.body, replyTo.message.photoUrl)}</p>
           </div>
           <button type="button" onClick={() => { onCancelReply?.(); inputRef.current?.focus(); }}
             aria-label="Cancelar respuesta"
@@ -136,30 +136,11 @@ export function Composer({
             className="absolute right-1 top-1 grid h-11 w-11 place-items-center rounded-full bg-surface text-ink shadow-sm"><X className="h-5 w-5" /></button>
         </div>
       )}
-      {photoError && <p role="alert" className="text-sm text-danger">{photoError}</p>}
-      <div className="flex items-center gap-2">
-      <button ref={stickerToggleRef} type="button" disabled={disabled || sending || !!photo}
-        onClick={() => stickersOpen ? closeStickers() : setStickersOpen(true)}
-        aria-label="Stickers de Chiikawa" aria-expanded={stickersOpen} aria-controls="chiikawa-stickers"
-        title="Stickers de Chiikawa"
-        className={`grid h-11 w-11 shrink-0 place-items-center rounded-full transition hover:bg-surface-hover hover:text-accent active:scale-90 disabled:opacity-50 ${stickersOpen ? 'bg-accent-soft text-accent' : 'text-muted'}`}>
-        <Sticker className="h-6 w-6" aria-hidden="true" />
-      </button>
-      {onSendPhoto && <>
-        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Elegir foto" className="sr-only" tabIndex={-1}
-          disabled={disabled || sending || !!sticker} onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = '';
-            if (!file) return;
-            const problem = validateAvatarFile(file);
-            setPhotoError(problem);
-            setPhoto(problem ? null : file);
-          }} />
-        <button type="button" disabled={disabled || sending || !!sticker} onClick={() => { setStickersOpen(false); fileRef.current?.click(); }}
-          aria-label="Enviar foto" title="Enviar foto" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-hover hover:text-accent active:scale-90 disabled:opacity-50">
-          <ImagePlus className="h-6 w-6" aria-hidden="true" />
-        </button>
-      </>}
+      {photoError && <p role="alert" className="text-[15px] text-danger">{photoError}</p>}
+      {/* Barra estilo WhatsApp: píldora de texto con sticker dentro,
+          cámara fuera y botón circular de enviar. Mismos iconos actuales. */}
+      <div className="flex items-center gap-1.5 sm:gap-2">
+      <div className="relative min-w-0 flex-1">
       <label htmlFor="composer" className="sr-only">Escribe un mensaje</label>
       <input
         ref={inputRef}
@@ -172,17 +153,40 @@ export function Composer({
         disabled={disabled || !!sticker}
         onChange={(e) => handleChange(e.target.value)}
         placeholder={sticker ? 'Sticker listo para enviar' : photo ? 'Añade un texto…' : placeholder ?? 'Escribe un mensaje…'}
-        className="min-h-[52px] min-w-0 flex-1 rounded-full border border-line bg-surface-muted px-5 text-[16px] text-ink shadow-sm placeholder:text-muted transition-shadow duration-200 focus:border-accent focus:shadow-md disabled:opacity-60"
+        className="min-h-[50px] w-full min-w-0 rounded-full border border-line bg-surface-muted py-2.5 pl-5 pr-12 text-[17px] text-ink shadow-sm placeholder:text-muted transition-shadow duration-200 focus:border-accent focus:shadow-md disabled:opacity-60"
       />
+      <button ref={stickerToggleRef} type="button" disabled={disabled || sending || !!photo}
+        onClick={() => stickersOpen ? closeStickers() : setStickersOpen(true)}
+        aria-label="Stickers de Chiikawa" aria-expanded={stickersOpen} aria-controls="chiikawa-stickers"
+        title="Stickers de Chiikawa"
+        className={`absolute right-1.5 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full transition hover:bg-surface-hover hover:text-accent active:scale-90 disabled:opacity-50 ${stickersOpen ? 'bg-accent-soft text-accent' : 'text-muted'}`}>
+        <Sticker className="h-7 w-7" aria-hidden="true" />
+      </button>
+      </div>
+      {onSendPhoto && <>
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Elegir foto" className="sr-only" tabIndex={-1}
+          disabled={disabled || sending || !!sticker} onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (!file) return;
+            const problem = validateAvatarFile(file);
+            setPhotoError(problem);
+            setPhoto(problem ? null : file);
+          }} />
+        <button type="button" disabled={disabled || sending || !!sticker} onClick={() => { setStickersOpen(false); fileRef.current?.click(); }}
+          aria-label="Enviar foto" title="Enviar foto" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-hover hover:text-accent active:scale-90 disabled:opacity-50">
+          <ImagePlus className="h-7 w-7" aria-hidden="true" />
+        </button>
+      </>}
       <button
         type="submit"
         disabled={!canSend}
         aria-label="Enviar mensaje"
-        className={`grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-accent text-on-accent shadow-sm transition-all duration-200 hover:bg-accent-hover active:scale-90 ${
+        className={`grid h-[50px] w-[50px] shrink-0 place-items-center rounded-full bg-accent text-on-accent shadow-sm transition-all duration-200 hover:bg-accent-hover active:scale-90 ${
           canSend ? 'scale-100 hover:scale-105' : 'scale-95 opacity-60'
         } disabled:opacity-50`}
       >
-        <SendHorizontal className="h-5 w-5" aria-hidden="true" />
+        <SendHorizontal className="h-6 w-6" aria-hidden="true" />
       </button>
       </div>
       {value.trim().length > MAX_MESSAGE_LENGTH - 200 && (
