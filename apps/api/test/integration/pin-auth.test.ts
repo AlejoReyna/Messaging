@@ -108,6 +108,7 @@ describe("API acceso con PIN (contrato v2)", () => {
     await retry.session();
     const back = await retry.request("POST", "/api/auth/pin-login", { body: { pin: "4321" } });
     assert.equal(back.status, 200);
+    retry.csrf = (back.json as { csrfToken: string }).csrfToken;
     const old = await retry.request("POST", "/api/auth/pin-login", { body: { pin: "5678" } });
     assert.equal(old.status, 401);
   });
