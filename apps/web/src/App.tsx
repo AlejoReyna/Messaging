@@ -8,7 +8,7 @@ import { ChatPanel } from './components/ChatPanel';
 import { ProfileDialog } from './components/ProfileDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { AvatarEditor } from './components/AvatarEditor';
-import { DEFAULT_THEME, MEMBER_DEFAULT_THEME, useTheme } from './lib/themes';
+import { useTheme } from './lib/themes';
 
 function Shell() {
   const session = useSession();
@@ -17,10 +17,7 @@ function Shell() {
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
   const closeAvatar = useCallback(() => setAvatarOpen(false), []);
   // Tema guardado de la cuenta; se expone en el diálogo de ajustes.
-  const { theme, chooseTheme } = useTheme(
-    session.user?.id,
-    session.user?.role === 'member' ? MEMBER_DEFAULT_THEME : DEFAULT_THEME,
-  );
+  const { theme, chooseTheme } = useTheme(session.user?.id);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
