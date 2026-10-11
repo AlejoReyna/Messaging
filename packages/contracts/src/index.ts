@@ -1,9 +1,13 @@
 import { z } from 'zod';
 
-export const CONTRACT_VERSION = 5;
+export const CONTRACT_VERSION = 6;
 export const MAX_MESSAGE_LENGTH = 4000;
 export const MAX_CHAT_PHOTO_BYTES = 5 * 1024 * 1024;
 export const PHOTO_MESSAGE_BODY = '📷 Foto';
+export const MAX_CHAT_VIDEO_BYTES = 50 * 1024 * 1024;
+export const MAX_CHAT_VIDEO_SECONDS = 180;
+export const VIDEO_MESSAGE_BODY = '🎬 Video';
+export const VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'] as const;
 export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 export const PUSH_ENDPOINT_MAX_LENGTH = 2000;
 export const AVATAR_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
@@ -99,14 +103,16 @@ export const MessageSchema = z.strictObject({
   sequence: positiveInteger,
   body: MessageBodySchema,
   photoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/photo$/i).optional(),
+  videoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/video$/i).optional(),
   replyTo: z.strictObject({
     messageId: uuid,
     senderId: uuid,
     body: MessageBodySchema,
     photoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/photo$/i).optional(),
-  }).optional(),
+    videoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/video$/i).optional(),
+  }).refine((value) => !(value.photoUrl && value.videoUrl), 'Sólo un adjunto por mensaje').optional(),
   createdAt: timestamp,
-});
+}).refine((value) => !(value.photoUrl && value.videoUrl), 'Sólo un adjunto por mensaje');
 export const SendMessageInputSchema = z.strictObject({
   clientMessageId: uuid,
   body: MessageBodySchema,
@@ -242,9 +248,10 @@ export const API_ROUTES = {
   pinStatus: '/api/auth/pin-status', pinSetup: '/api/auth/pin-setup', pinLogin: '/api/auth/pin-login',
   changePin: '/api/auth/change-pin',
   me: '/api/users/me', myAvatar: '/api/users/me/avatar', conversation: '/api/conversation',
-  messages: '/api/messages', sendPhoto: '/api/messages/photo', read: '/api/conversation/read', clearMessages: '/api/conversation/messages',
+  messages: '/api/messages', sendPhoto: '/api/messages/photo', sendVideo: '/api/messages/video', read: '/api/conversation/read', clearMessages: '/api/conversation/messages',
   vapidKey: '/api/push/vapid-key', pushSubscriptions: '/api/push/subscriptions',
   message: (id: string) => `/api/messages/${encodeURIComponent(id)}`,
   messagePhoto: (id: string) => `/api/messages/${encodeURIComponent(id)}/photo`,
+  messageVideo: (id: string) => `/api/messages/${encodeURIComponent(id)}/video`,
   avatar: (id: string, version: number) => `/api/users/${encodeURIComponent(id)}/avatar?v=${version}`,
 } as const;

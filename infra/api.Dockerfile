@@ -1,7 +1,7 @@
 FROM node:24-trixie-slim AS base
 RUN printf 'deb http://deb.debian.org/debian forky main\n' > /etc/apt/sources.list.d/forky.list \
     && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t forky openssl libvips42t64 \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t forky openssl libvips42t64 ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS build

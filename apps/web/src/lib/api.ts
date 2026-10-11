@@ -6,6 +6,8 @@ import {
   ConversationResponseSchema,
   LoginInputSchema,
   MessageSchema,
+  MAX_CHAT_VIDEO_BYTES,
+  VIDEO_MIME_TYPES,
   MessagesPageSchema,
   PinLoginInputSchema,
   PinSetupInputSchema,
@@ -292,6 +294,32 @@ export async function sendPhoto(file: File, input: SendMessageInput, csrfToken: 
     method: 'POST', credentials: 'include', headers: headers(csrfToken), body: form,
   });
   if (!res.ok) await parseFailure(res);
+  const data = await res.json() as { message: unknown };
+  return { message: MessageSchema.parse(data.message), repeated: res.status === 200 };
+}
+
+export function validateVideoFile(file: File): string | null {
+  if (!file.size || file.size > MAX_CHAT_VIDEO_BYTES) return 'El video debe pesar como máximo 50 MiB.';
+  if (file.type && !(VIDEO_MIME_TYPES as readonly string[]).includes(file.type)) {
+    return 'Elige un video MP4, MOV o WebM.';
+  }
+  if (!file.type && !/\.(mp4|mov|webm)$/i.test(file.name)) return 'Elige un video MP4, MOV o WebM.';
+  return null;
+}
+
+export async function sendVideo(file: File, input: SendMessageInput, csrfToken: string, replyToMessageId?: string): Promise<{ message: Message; repeated: boolean }> {
+  const problem = validateVideoFile(file);
+  if (problem) throw toApiFailure(400, 'UPLOAD_INVALID', problem);
+  const form = new FormData();
+  form.append('clientMessageId', input.clientMessageId);
+  form.append('conversationVersion', String(input.conversationVersion));
+  form.append('body', input.body);
+  if (replyToMessageId) form.append('replyToMessageId', replyToMessageId);
+  form.append('video', file, 'video');
+  const res = await fetch(API_ROUTES.sendVideo, {
+    method: 'POST', credentials: 'include', headers: headers(csrfToken), body: form,
+  });
+  if (!res.ok) await parseFailure(res, { UPLOAD_INVALID: 'Video no válido. Usa MP4, MOV o WebM de hasta 50 MiB y 3 minutos.' });
   const data = await res.json() as { message: unknown };
   return { message: MessageSchema.parse(data.message), repeated: res.status === 200 };
 }

@@ -23,6 +23,8 @@ import {
   PushSubscriptionSavedResponseSchema,
   MAX_AVATAR_BYTES,
   PHOTO_MESSAGE_BODY,
+  VIDEO_MESSAGE_BODY,
+  MAX_CHAT_VIDEO_BYTES,
   type SendMessageInput,
   type Message,
 } from "@private-chat/contracts";
@@ -46,6 +48,7 @@ import { MemoryRateLimiter } from "../lib/rate-limit.js";
 import { toPublicUser } from "../users.js";
 import { detectImageFormat, processAvatarImage } from "../avatar.js";
 import { processChatPhoto } from "../photo.js";
+import { processChatVideo, parseVideoRange } from "../video.js";
 import { replaceAvatar } from "../avatar-storage.js";
 import { applyConversationClear, applyMessageDeletion, lockConversation } from "../deletions.js";
 import { appendJournalEntry, type JournalEntry } from "../deletion-journal.js";
@@ -87,10 +90,10 @@ function cookieFlags(isProd: boolean): { httpOnly: true; secure: boolean; sameSi
 }
 
 const messageSelect = { id: true, clientMessageId: true, senderId: true, sequence: true,
-  body: true, createdAt: true, photoHash: true, replyToMessageId: true } as const;
+  body: true, createdAt: true, photoHash: true, videoHash: true, replyToMessageId: true } as const;
 
-type ReplyTarget = { id: string; senderId: string; body: string; photoHash: string | null };
-const replyTargetSelect = { id: true, senderId: true, body: true, photoHash: true } as const;
+type ReplyTarget = { id: string; senderId: string; body: string; photoHash: string | null; videoHash: string | null };
+const replyTargetSelect = { id: true, senderId: true, body: true, photoHash: true, videoHash: true } as const;
 
 function replySnapshot(target: ReplyTarget): NonNullable<Message["replyTo"]> {
   return {
@@ -98,6 +101,7 @@ function replySnapshot(target: ReplyTarget): NonNullable<Message["replyTo"]> {
     senderId: target.senderId,
     body: target.body,
     ...(target.photoHash ? { photoUrl: `/api/messages/${target.id}/photo` } : {}),
+    ...(target.videoHash ? { videoUrl: `/api/messages/${target.id}/video` } : {}),
   };
 }
 
@@ -125,6 +129,7 @@ function serializeMessage(row: {
   body: string;
   createdAt: Date;
   photoHash?: string | null;
+  videoHash?: string | null;
   replyToMessageId?: string | null;
 }, replies?: Map<string, ReplyTarget>): Message {
   const target = row.replyToMessageId ? replies?.get(row.replyToMessageId) : undefined;
@@ -136,6 +141,7 @@ function serializeMessage(row: {
     body: row.body,
     createdAt: row.createdAt.toISOString(),
     ...(row.photoHash ? { photoUrl: `/api/messages/${row.id}/photo` } : {}),
+    ...(row.videoHash ? { videoUrl: `/api/messages/${row.id}/video` } : {}),
     ...(target ? { replyTo: replySnapshot(target) } : {}),
   };
 }
@@ -194,6 +200,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const PIN_MAX_FAILURES = 10;
   const PIN_LOCK_MS = 30 * 60 * 1000;
   const sendByUser = new MemoryRateLimiter({ maxAttempts: 60, windowMs: 60 * 1000 });
+  const videoByUser = new MemoryRateLimiter({ maxAttempts: 6, windowMs: 60 * 1000 });
+  let convertingVideo = false;
   const pushByUser = new MemoryRateLimiter({ maxAttempts: 30, windowMs: 60 * 1000 });
 
   // --- Sesión y CSRF -------------------------------------------------------
@@ -739,6 +747,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       body: string;
       createdAt: Date;
       photoHash: string | null;
+      videoHash: string | null;
       replyToMessageId: string | null;
     }>;
     let hasMore = false;
@@ -839,10 +848,72 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     return reply.type("image/webp").header("x-content-type-options", "nosniff").send(Buffer.from(row.photoData));
   });
 
-  async function persistMessage(userId: string, input: SendMessageInput, reply: FastifyReply, photo?: Buffer) {
+  app.post("/api/messages/video", async (request, reply) => {
+    if (request.headers.origin && request.headers.origin !== config.appOrigin) return fail(reply, ERRORS.csrfInvalid());
+    const error = await guard(request, { auth: true, csrf: true });
+    if (error) return fail(reply, error);
+    const userId = request.auth!.userId;
+    if (convertingVideo || !videoByUser.take(userId)) return fail(reply, ERRORS.rateLimited());
+    // Reserve before reading: at most one 50 MiB upload/conversion in memory.
+    convertingVideo = true;
+    try {
+      let video: Buffer | undefined;
+      const fields: Record<string, string> = {};
+      try {
+        for await (const part of request.parts({ limits: { fileSize: MAX_CHAT_VIDEO_BYTES, files: 1, fields: 4, parts: 5 } })) {
+          if (part.type === "file") {
+            if (part.fieldname !== "video" || video) throw new Error("INVALID_VIDEO");
+            video = await part.toBuffer();
+            if (part.file.truncated) throw new Error("INVALID_VIDEO");
+          } else {
+            if (!["body", "clientMessageId", "conversationVersion", "replyToMessageId"].includes(part.fieldname) ||
+              part.fieldname in fields || typeof part.value !== "string" || part.valueTruncated) throw new Error("INVALID_FIELDS");
+            fields[part.fieldname] = part.value;
+          }
+        }
+        if (!video?.length) throw new Error("INVALID_VIDEO");
+      } catch { return fail(reply, ERRORS.uploadInvalid("Video no válido. Usa MP4, MOV o WebM de hasta 50 MiB y 3 minutos.")); }
+      const parsed = SendMessageInputSchema.safeParse({ ...fields,
+        body: fields["body"]?.trim() || VIDEO_MESSAGE_BODY, conversationVersion: Number(fields["conversationVersion"]) });
+      if (!parsed.success) return fail(reply, ERRORS.validation("Datos no válidos"));
+      const hash = createHash("sha256").update(video).digest("hex");
+      let processed: Buffer;
+      try { processed = await processChatVideo(video); }
+      catch { return fail(reply, ERRORS.uploadInvalid("Video no válido. Usa MP4, MOV o WebM de hasta 50 MiB y 3 minutos.")); }
+      return await persistMessage(userId, parsed.data, reply, undefined, { data: processed, hash });
+    } finally {
+      convertingVideo = false;
+    }
+  });
+
+  app.get("/api/messages/:messageId/video", async (request, reply) => {
+    const error = await guard(request, { auth: true, csrf: false });
+    if (error) return fail(reply, error);
+    const { messageId } = request.params as { messageId: string };
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId)) {
+      return fail(reply, ERRORS.validation("Identificador no válido"));
+    }
+    const row = await db.message.findUnique({ where: { id: messageId }, select: { videoData: true } });
+    if (!row?.videoData) return fail(reply, ERRORS.messageNotFound());
+    const data = Buffer.from(row.videoData);
+    reply.type("video/mp4").header("x-content-type-options", "nosniff").header("accept-ranges", "bytes");
+    const header = request.headers.range;
+    if (header) {
+      const range = parseVideoRange(header, data.length);
+      if (!range) return reply.code(416).header("content-range", `bytes */${data.length}`).send();
+      const bytes = data.subarray(range.start, range.end + 1);
+      return reply.code(206).header("content-range", `bytes ${range.start}-${range.end}/${data.length}`)
+        .header("content-length", bytes.length).send(bytes);
+    }
+    return reply.header("content-length", data.length).send(data);
+  });
+
+  async function persistMessage(userId: string, input: SendMessageInput, reply: FastifyReply,
+    photo?: Buffer, video?: { data: Buffer; hash: string }) {
     const { clientMessageId, body, conversationVersion, replyToMessageId } = input;
 
     const photoHash = photo ? createHash("sha256").update(photo).digest("hex") : null;
+    const videoHash = video?.hash ?? null;
     const sameReply = (value: string | null | undefined): boolean =>
       (value ?? null) === (replyToMessageId ?? null);
 
@@ -857,7 +928,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
           select: messageSelect,
         });
         if (existing) {
-          if (existing.body !== body || existing.photoHash !== photoHash || !sameReply(existing.replyToMessageId)) {
+          if (existing.body !== body || existing.photoHash !== photoHash || existing.videoHash !== videoHash || !sameReply(existing.replyToMessageId)) {
             throw Object.assign(new Error("IDEMPOTENCY_CONFLICT"), { code: "IDEMPOTENCY_CONFLICT" });
           }
           const replies = await fetchReplyTargets(tx,
@@ -897,6 +968,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
             sequence: nextSequence,
             body,
             ...(photo ? { photoData: new Uint8Array(photo), photoHash } : {}),
+            ...(video ? { videoData: new Uint8Array(video.data), videoHash } : {}),
             ...(replyToMessageId ? { replyToMessageId } : {}),
           },
           select: messageSelect,
@@ -934,7 +1006,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
           select: messageSelect,
         });
         if (existing) {
-          if (existing.body !== body || existing.photoHash !== photoHash || !sameReply(existing.replyToMessageId)) return fail(reply, ERRORS.idempotencyConflict());
+          if (existing.body !== body || existing.photoHash !== photoHash || existing.videoHash !== videoHash || !sameReply(existing.replyToMessageId)) return fail(reply, ERRORS.idempotencyConflict());
           const replies = await fetchReplyTargets(db,
             existing.replyToMessageId ? [existing.replyToMessageId] : []);
           return reply.status(200).send({ message: serializeMessage(existing, replies) });

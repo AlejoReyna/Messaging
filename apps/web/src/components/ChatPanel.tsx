@@ -19,7 +19,7 @@ export function ChatPanel({
   me, partner, messages, pending, loading, loadingMore, hasMore, loadError,
   connected, partnerTyping, partnerOnline, readByPartner,
   notice, showSidebarToggle, onOpenSettings, onLoadMore, onReload,
-  onSend, onSendPhoto, onRetry, onDiscardPending, onTyping, onDeleteMessage, onClear, isAdmin, clearArmed,
+  onSend, onSendPhoto, onSendVideo, onRetry, onDiscardPending, onTyping, onDeleteMessage, onClear, isAdmin, clearArmed,
 }: {
   me: PublicUser;
   partner: PublicUser | null;
@@ -40,6 +40,7 @@ export function ChatPanel({
   onReload: () => void;
   onSend: (body: string, replyTo?: ReplyTarget | null) => Promise<void>;
   onSendPhoto?: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void>;
+  onSendVideo?: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void>;
   onRetry: (id: string) => Promise<void>;
   onDiscardPending: (id: string) => void;
   onTyping: (t: boolean) => void;
@@ -351,6 +352,7 @@ export function ChatPanel({
                 key={p.clientMessageId}
                 body={p.body}
                 photo={p.photo}
+                video={p.video}
                 replyTo={p.replyTo}
                 failed={p.status === 'failed'}
                 error={p.error}
@@ -375,7 +377,7 @@ export function ChatPanel({
 
       {/* Entrada */}
       <footer className="chat-footer shrink-0 border-t border-line/70 bg-surface px-3 pb-3 pt-3 sm:px-6 sm:pb-5">
-        <Composer onSendPhoto={onSendPhoto} onSend={onSend} onTyping={onTyping}
+        <Composer onSendPhoto={onSendPhoto} onSendVideo={onSendVideo} onSend={onSend} onTyping={onTyping}
           disabled={loading || !!loadError} replyTo={replyTo} onCancelReply={() => setReplyTo(null)} />
       </footer>
       {partnerAvatarOpen && partner && <AvatarPreview user={partner} onClose={() => setPartnerAvatarOpen(false)} />}

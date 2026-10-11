@@ -150,6 +150,7 @@ function Shell() {
           onReload={chat.reload}
           onSend={chat.send}
           onSendPhoto={chat.sendPhoto}
+          onSendVideo={chat.sendVideo}
           onRetry={chat.retry}
           onDiscardPending={chat.discardPending}
           onTyping={chat.setTyping}

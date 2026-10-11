@@ -9,6 +9,7 @@ export interface PendingMessage {
   status: 'pending' | 'failed';
   error?: string;
   photo?: File;
+  video?: File;
   replyTo?: ReplySnapshot;
 }
 

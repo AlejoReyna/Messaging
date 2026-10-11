@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ImagePlus, Reply, SendHorizontal, Sticker, X } from 'lucide-react';
-import { MAX_MESSAGE_LENGTH } from '@private-chat/contracts';
-import { validateAvatarFile } from '../lib/api';
+import { ImagePlus, Reply, SendHorizontal, Sticker, Video, X } from 'lucide-react';
+import { MAX_MESSAGE_LENGTH, MAX_CHAT_VIDEO_SECONDS } from '@private-chat/contracts';
+import { validateAvatarFile, validateVideoFile } from '../lib/api';
 import type { ChatSticker } from '../lib/stickers';
 import { snippetOf } from '../lib/reply';
 import type { ReplyTarget } from '../hooks/useChat';
 import { StickerPicker } from './StickerPicker';
 
 export function Composer({
-  onSend, onSendPhoto, onTyping, disabled, placeholder, replyTo, onCancelReply,
+  onSend, onSendPhoto, onSendVideo, onTyping, disabled, placeholder, replyTo, onCancelReply,
 }: {
   onSend: (body: string, replyTo?: ReplyTarget | null) => Promise<void> | void;
   onSendPhoto?: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void> | void;
+  onSendVideo?: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void> | void;
   onTyping: (isTyping: boolean) => void;
   disabled?: boolean;
   placeholder?: string;
@@ -19,6 +20,10 @@ export function Composer({
   onCancelReply?: () => void;
 }) {
   const [photo, setPhoto] = useState<File | null>(null);
+  const [video, setVideo] = useState<File | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoPreviewUnavailable, setVideoPreviewUnavailable] = useState(false);
+  const videoFileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoReady, setPhotoReady] = useState(false);
@@ -49,11 +54,14 @@ export function Composer({
 
   useEffect(() => {
     setPhotoReady(false);
-    if (!photo) { setPreview(null); return; }
-    const url = URL.createObjectURL(photo);
+    setVideoReady(false);
+    setVideoPreviewUnavailable(false);
+    const file = video ?? photo;
+    if (!file) { setPreview(null); return; }
+    const url = URL.createObjectURL(file);
     setPreview(url);
     return () => URL.revokeObjectURL(url);
-  }, [photo]);
+  }, [photo, video]);
 
   function handleChange(v: string) {
     setValue(v);
@@ -66,17 +74,20 @@ export function Composer({
   async function submit(e: FormEvent) {
     e.preventDefault();
     const body = value.trim();
-    if ((!body && !photo && !sticker) || sending || disabled || (photo && !photoReady) || (sticker && !stickerReady)) return;
+    if ((!body && !photo && !video && !sticker) || sending || disabled || (photo && !photoReady) ||
+      (video && !videoReady) || (sticker && !stickerReady)) return;
     if (!sticker && body.length > MAX_MESSAGE_LENGTH) return;
     setSending(true);
     onTyping(false);
     try {
       if (sticker) await onSend(sticker.body, replyTo ?? null);
+      else if (video && onSendVideo) await onSendVideo(video, body, replyTo ?? null);
       else if (photo && onSendPhoto) await onSendPhoto(photo, body, replyTo ?? null);
       else await onSend(body, replyTo ?? null);
       setSticker(null);
       setStickerReady(false);
       setPhoto(null);
+      setVideo(null);
       setPhotoError(null);
       if (!sticker) setValue('');
       onCancelReply?.();
@@ -89,7 +100,8 @@ export function Composer({
   }
 
   const remaining = MAX_MESSAGE_LENGTH - value.trim().length;
-  const canSend = !disabled && !sending && (sticker ? stickerReady : photo ? photoReady : value.trim().length > 0);
+  const canSend = !disabled && !sending && value.trim().length <= MAX_MESSAGE_LENGTH &&
+    (sticker ? stickerReady : video ? videoReady : photo ? photoReady : value.trim().length > 0);
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-2" aria-label="Enviar mensaje"
@@ -101,7 +113,7 @@ export function Composer({
           <Reply className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
           <div className="min-w-0 flex-1 border-l-2 border-accent pl-2">
             <p className="truncate text-[14px] font-bold text-accent">{replyTo.author}</p>
-            <p className="truncate text-[15px] text-muted">{snippetOf(replyTo.message.body, replyTo.message.photoUrl)}</p>
+            <p className="truncate text-[15px] text-muted">{snippetOf(replyTo.message.body, replyTo.message.photoUrl, replyTo.message.videoUrl)}</p>
           </div>
           <button type="button" onClick={() => { onCancelReply?.(); inputRef.current?.focus(); }}
             aria-label="Cancelar respuesta"
@@ -130,9 +142,21 @@ export function Composer({
       </div>}
       {preview && (
         <div className="relative w-fit rounded-2xl border border-line bg-surface-muted p-2">
-          <img src={preview} alt="Foto lista para enviar" className="max-h-40 max-w-full rounded-xl object-contain"
+          {video ? <>
+            <video key={preview} src={preview} aria-label="Video listo para enviar" controls playsInline preload="metadata"
+              className="max-h-40 max-w-full rounded-xl bg-black"
+              onLoadedMetadata={(event) => {
+                const duration = event.currentTarget.duration;
+                const valid = Number.isFinite(duration) && duration > 0 && duration <= MAX_CHAT_VIDEO_SECONDS;
+                setVideoReady(valid);
+                setPhotoError(valid ? null : 'El video debe durar como máximo 3 minutos.');
+              }} onError={() => { setVideoPreviewUnavailable(true); setVideoReady(true); }} />
+            <p className="mt-1 max-w-xs truncate text-xs text-muted">{video.name} · Hasta 50 MiB / 3 minutos</p>
+            {videoPreviewUnavailable && <p className="mt-1 text-sm text-muted">Vista previa no disponible. Puedes enviarlo para abrirlo en el chat.</p>}
+          </> : <img src={preview} alt="Foto lista para enviar" className="max-h-40 max-w-full rounded-xl object-contain"
             onLoad={() => setPhotoReady(true)} onError={() => { setPhotoReady(false); setPhotoError('No se pudo abrir esa foto. Elige otra.'); }} />
-          <button type="button" disabled={sending} onClick={() => { setPhoto(null); setPhotoError(null); }} aria-label="Quitar foto"
+          }
+          <button type="button" disabled={sending} onClick={() => { setPhoto(null); setVideo(null); setPhotoError(null); }} aria-label={video ? 'Quitar video' : 'Quitar foto'}
             className="absolute right-1 top-1 grid h-11 w-11 place-items-center rounded-full bg-surface text-ink shadow-sm"><X className="h-5 w-5" /></button>
         </div>
       )}
@@ -152,10 +176,10 @@ export function Composer({
         value={sticker ? '' : value}
         disabled={disabled || !!sticker}
         onChange={(e) => handleChange(e.target.value)}
-        placeholder={sticker ? 'Sticker listo para enviar' : photo ? 'Añade un texto…' : placeholder ?? 'Escribe un mensaje…'}
+        placeholder={sticker ? 'Sticker listo para enviar' : photo || video ? 'Añade un texto…' : placeholder ?? 'Escribe un mensaje…'}
         className="min-h-[50px] w-full min-w-0 rounded-full border border-line bg-surface-muted py-2.5 pl-5 pr-12 text-[17px] text-ink shadow-sm placeholder:text-muted transition-shadow duration-200 focus:border-accent focus:shadow-md disabled:opacity-60"
       />
-      <button ref={stickerToggleRef} type="button" disabled={disabled || sending || !!photo}
+      <button ref={stickerToggleRef} type="button" disabled={disabled || sending || !!photo || !!video}
         onClick={() => stickersOpen ? closeStickers() : setStickersOpen(true)}
         aria-label="Stickers de Chiikawa" aria-expanded={stickersOpen} aria-controls="chiikawa-stickers"
         title="Stickers de Chiikawa"
@@ -169,6 +193,7 @@ export function Composer({
             const file = event.target.files?.[0];
             event.target.value = '';
             if (!file) return;
+            setVideo(null);
             const problem = validateAvatarFile(file);
             setPhotoError(problem);
             setPhoto(problem ? null : file);
@@ -176,6 +201,25 @@ export function Composer({
         <button type="button" disabled={disabled || sending || !!sticker} onClick={() => { setStickersOpen(false); fileRef.current?.click(); }}
           aria-label="Enviar foto" title="Enviar foto" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-hover hover:text-accent active:scale-90 disabled:opacity-50">
           <ImagePlus className="h-7 w-7" aria-hidden="true" />
+        </button>
+      </>}
+      {onSendVideo && <>
+        <input ref={videoFileRef} type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
+          aria-label="Elegir video" className="sr-only" tabIndex={-1} disabled={disabled || sending || !!sticker}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (!file) return;
+            const problem = validateVideoFile(file);
+            setPhoto(null);
+            setVideoReady(false);
+            setPhotoError(problem);
+            setVideo(problem ? null : file);
+          }} />
+        <button type="button" disabled={disabled || sending || !!sticker}
+          onClick={() => { setStickersOpen(false); videoFileRef.current?.click(); }} aria-label="Enviar video" title="Enviar video"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-hover hover:text-accent active:scale-90 disabled:opacity-50">
+          <Video className="h-7 w-7" aria-hidden="true" />
         </button>
       </>}
       <button
