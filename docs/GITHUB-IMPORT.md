@@ -1,6 +1,6 @@
 # Primera subida a GitHub
 
-Destino autorizado por el usuario el 2026-10-10: `https://github.com/AlejoReyna/Messaging.git`, repositorio inicialmente vacío. Se prepara una primera versión del monorepo en commits separados para infraestructura/contratos, backend y frontend, conservando las entregas y los cambios de las otras sesiones. No se despliega esta versión al VPS.
+Destino autorizado por el usuario el 2026-10-10: `https://github.com/AlejoReyna/Messaging.git`, repositorio inicialmente vacío. Se subió la primera versión del monorepo a `main`, en commits separados para infraestructura/contratos (`d59f191`), backend (`c1ba805`) y frontend (`fd0aa59`), conservando las entregas y los cambios de las otras sesiones. `git push -u origin main` terminó con código `0`. No se despliega esta versión al VPS.
 
 La revisión previa excluye `.secrets`, `.data`, archivos `.env` reales, dependencias, compilados y claves privadas. La clave SSH del chat y su perfil local están fuera del repositorio.
 
