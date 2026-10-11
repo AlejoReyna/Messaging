@@ -5,7 +5,7 @@ x-api-environment: &api-environment
   APP_ORIGIN: https://${DOMAIN:?Configura DOMAIN en .env}
   HOST: 0.0.0.0
   PORT: "3000"
-  DATABASE_HOST: postgres
+  DATABASE_HOST: private-chat-postgres
   DATABASE_PORT: "5432"
   DATABASE_NAME: private_chat
   DATABASE_USER: private_chat_app
@@ -30,7 +30,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./infra/postgres/01-init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
-    networks: [database]
+    networks:
+      database:
+        aliases: [private-chat-postgres]
     healthcheck:
       test: [CMD-SHELL, "pg_isready -U private_chat_owner -d private_chat"]
       interval: 10s
