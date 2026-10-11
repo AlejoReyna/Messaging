@@ -134,3 +134,9 @@ sólo para apuntar el proxy a otro backend local.
 - `git diff --check` → OK. Revisión de patrones de credenciales en archivos pendientes → sin coincidencias; `.secrets/` y `.data/` permanecen ignorados.
 - `npm run typecheck` → contratos y frontend OK; backend falla con TS2339 en `apps/api/src/notify.ts` porque `AppConfig` no tiene la propiedad `notify`. El borrador y su test no están integrados en la configuración actual. Se preservan tal como estaban por la solicitud de incluir todo; no se ejecutaron tests en esta entrega.
 - CI requiere TypeScript correcto antes de desplegar, por lo que este borrador bloquea una reconstrucción automática hasta integrar o retirar la funcionalidad. La publicación manual de los cambios iOS descrita arriba permanece disponible en producción.
+
+## Retirada del borrador de correo — 2026-10-11
+
+- El usuario solicitó eliminar el envío de correo que no utiliza. Se retiraron `apps/api/src/notify.ts` y `apps/api/test/unit/notify.test.ts`; el código no estaba conectado a la configuración ni al flujo de mensajes.
+- Búsqueda de referencias SMTP y funciones del módulo en apps, contratos, infraestructura, scripts y workflows → ninguna referencia restante. `git diff --check` → OK. `npm run typecheck` → contratos, API y frontend OK. No se ejecutaron tests locales en esta limpieza; GitHub CI los ejecutará tras el push.
+- Esta limpieza resuelve el fallo TS2339 documentado en la entrega anterior. No requiere dependencias, cambios de contrato ni migraciones.
