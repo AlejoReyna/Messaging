@@ -61,14 +61,6 @@ jobs:
           # bloque de Caddy documentado más abajo. Nunca reiniciar el VPS.
           cd "$DEPLOY_DIR"
 
-          # Docker Compose monta secretos locales conservando los permisos del
-          # archivo origen. El API no se ejecuta como root, así que la clave
-          # VAPID debe poder leerse por su UID sin hacerse pública.
-          if [ -f .secrets/vapid_private_key ]; then
-            chown 10001:10001 .secrets/vapid_private_key
-            chmod 600 .secrets/vapid_private_key
-          fi
-
           # Falla si el historial local divergió (el operador lo resuelve a mano).
           git pull --ff-only origin main
 
