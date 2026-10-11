@@ -58,15 +58,15 @@ export function PinChangeForm() {
     }
   }
 
-  const inputCls = 'min-h-[48px] w-full rounded-2xl border border-line bg-surface px-3 text-center text-lg tracking-[0.5em] text-[16px]';
-  const labelCls = 'mb-1 block text-xs font-semibold text-ink text-center sm:text-left';
+  const inputCls = 'min-h-[48px] w-full rounded-2xl border border-line bg-surface px-3 text-left text-lg tracking-[0.5em] text-[16px]';
+  const labelCls = 'mb-1 block text-xs font-semibold text-ink text-left';
 
   return (
     <form onSubmit={onSubmit} className="rounded-3xl bg-surface-muted p-4">
-      <h3 className="flex items-center justify-center gap-2 text-sm font-bold text-ink sm:justify-start">
+      <h3 className="flex items-center justify-start gap-2 text-sm font-bold text-ink">
         <KeyRound className="h-4 w-4" aria-hidden="true" /> Cambiar código
       </h3>
-      <p className="mt-0.5 text-center text-xs text-muted sm:text-left">
+      <p className="mt-0.5 text-left text-xs text-muted">
         Tu código de 4 dígitos. Guárdalo bien: es la única llave de tu cuenta.
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -93,9 +93,9 @@ export function PinChangeForm() {
         </div>
       </div>
       <div key={shakeKey} className={shakeKey > 0 && error ? 'shake' : undefined}>
-        {error && <p role="alert" className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-center text-sm text-red-800 sm:text-left">{error}</p>}
+        {error && <p role="alert" className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-left text-sm text-red-800">{error}</p>}
       </div>
-      {ok && <p role="status" className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 text-center text-sm text-emerald-900 sm:text-left">{ok}</p>}
+      {ok && <p role="status" className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 text-left text-sm text-emerald-900">{ok}</p>}
       <button type="submit" disabled={busy}
         className="mt-3 min-h-[48px] w-full rounded-2xl bg-accent text-sm font-bold text-on-accent transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-60">
         {busy ? 'Guardando…' : 'Guardar código'}

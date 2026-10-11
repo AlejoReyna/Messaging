@@ -45,14 +45,14 @@ describe('GateScreen (puerta con PIN)', () => {
     // Paso 1: pregunta secreta con input de una sola línea.
     const question = await screen.findByLabelText(/chihuahua fallecido/i);
     expect(question.tagName).toBe('INPUT');
-    fireEvent.change(question, { target: { value: 'sammy' } });
+    fireEvent.change(question, { target: { value: 'respuesta-de-prueba' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     // Paso 2: crear código + confirmación con el teclado.
     expect(await screen.findByText(/Crea tu código/i)).toBeInTheDocument();
     press('1'); press('2'); press('3'); press('4');
     expect(await screen.findByText(/Confirma tu código/i)).toBeInTheDocument();
     press('1'); press('2'); press('3'); press('4');
-    await waitFor(() => expect(pinSetup).toHaveBeenCalledWith('sammy', '1234'));
+    await waitFor(() => expect(pinSetup).toHaveBeenCalledWith('respuesta-de-prueba', '1234'));
     expect(pinLogin).not.toHaveBeenCalled();
   });
 
@@ -76,7 +76,7 @@ describe('GateScreen (puerta con PIN)', () => {
     });
     render(<GateScreen />);
     await screen.findByLabelText(/chihuahua fallecido/i);
-    fireEvent.change(screen.getByLabelText(/chihuahua fallecido/i), { target: { value: 'Sammy' } });
+    fireEvent.change(screen.getByLabelText(/chihuahua fallecido/i), { target: { value: 'Respuesta-de-prueba' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await screen.findByText(/Crea tu código/i);
     press('1'); press('1'); press('1'); press('1');

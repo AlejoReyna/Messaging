@@ -72,7 +72,7 @@ export function ProfileDialog({ me, avatarOpen, onOpenAvatar, onClose }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-overlay/50 sm:place-items-center sm:p-4"
+    <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/50 p-4"
       role="presentation" aria-hidden={avatarOpen || undefined} inert={avatarOpen || undefined}
       onClick={() => { if (!avatarOpen) onClose(); }}>
       <div
@@ -81,10 +81,10 @@ export function ProfileDialog({ me, avatarOpen, onOpenAvatar, onClose }: {
         aria-modal="true"
         aria-labelledby="profile-title"
         onClick={(e) => e.stopPropagation()}
-        className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-line/70 bg-surface p-6 shadow-dialog sm:rounded-[2rem]"
+        className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-line/70 bg-surface p-6 shadow-dialog"
       >
-        <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:gap-3 sm:text-left">
-          <div className="flex min-w-0 flex-col items-center gap-3 sm:flex-row">
+        <div className="flex items-center gap-3 text-left">
+          <div className="flex min-w-0 flex-row items-center gap-3">
             <button type="button" onClick={onOpenAvatar} aria-label={`Cambiar imagen de ${me.displayName}`}
               title="Toca para cambiar tu foto"
               className="shrink-0 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-80 active:scale-95">
@@ -106,14 +106,14 @@ export function ProfileDialog({ me, avatarOpen, onOpenAvatar, onClose }: {
             </div>
           </div>
           <button type="button" onClick={onClose} aria-label="Cerrar ajustes"
-            className="grid max-h-[44px] min-h-[44px] min-w-[44px] place-items-center rounded-full bg-surface-muted text-ink transition-all duration-200 hover:scale-105 hover:bg-surface-hover active:scale-95 max-sm:absolute max-sm:right-4 max-sm:top-4 sm:ml-auto">
+            className="grid max-h-[44px] min-h-[44px] min-w-[44px] place-items-center rounded-full bg-surface-muted text-ink transition-all duration-200 hover:scale-105 hover:bg-surface-hover active:scale-95 ml-auto">
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
         {msg && (
           <p role={msg.kind === 'err' ? 'alert' : 'status'}
-            className={`mt-4 rounded-2xl px-4 py-3 text-center text-sm font-medium sm:text-left ${msg.kind === 'err' ? 'bg-red-50 text-red-800' : 'bg-emerald-50 text-emerald-900'}`}>
+            className={`mt-4 rounded-2xl px-4 py-3 text-left text-sm font-medium ${msg.kind === 'err' ? 'bg-red-50 text-red-800' : 'bg-emerald-50 text-emerald-900'}`}>
             {msg.text}
           </p>
         )}
@@ -121,16 +121,16 @@ export function ProfileDialog({ me, avatarOpen, onOpenAvatar, onClose }: {
         <form onSubmit={saveProfile} className="mt-4 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="profile-username" className="mb-1 block text-center text-xs font-bold text-ink sm:text-left">Usuario</label>
+              <label htmlFor="profile-username" className="mb-1 block text-left text-xs font-bold text-ink">Usuario</label>
               <input id="profile-username" value={username} onChange={(e) => setUsername(e.target.value)}
                 autoCapitalize="none" spellCheck={false} minLength={3} maxLength={32}
-                className="min-h-[48px] w-full rounded-2xl border border-line bg-surface-muted px-3 text-center text-[16px] sm:text-left" />
+                className="min-h-[48px] w-full rounded-2xl border border-line bg-surface-muted px-3 text-left text-[16px]" />
             </div>
             <div>
-              <label htmlFor="profile-display" className="mb-1 block text-center text-xs font-bold text-ink sm:text-left">Nombre visible</label>
+              <label htmlFor="profile-display" className="mb-1 block text-left text-xs font-bold text-ink">Nombre visible</label>
               <input ref={nameRef} id="profile-display" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
                 minLength={1} maxLength={60}
-                className="min-h-[48px] w-full rounded-2xl border border-line bg-surface-muted px-3 text-center text-[16px] sm:text-left" />
+                className="min-h-[48px] w-full rounded-2xl border border-line bg-surface-muted px-3 text-left text-[16px]" />
             </div>
           </div>
           <button type="submit" disabled={saving}
