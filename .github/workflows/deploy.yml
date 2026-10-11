@@ -71,7 +71,11 @@ jobs:
 
           # Migraciones + provisión idempotente (no cambia cuentas existentes).
           # PROHIBIDO: docker compose down -v (borraría volúmenes con datos).
-          $COMPOSE --profile tools run --rm bootstrap
+          # `docker compose run` keeps stdin open by default. The SSH script
+          # itself arrives on stdin, so detach that input or Compose can consume
+          # the remaining deployment commands after bootstrap completes.
+          $COMPOSE --profile tools run --rm --no-tty --interactive=false bootstrap </dev/null
+          echo "bootstrap OK"
 
           # Levantar servicios del chat (red Docker propia + red externa caddy).
           $COMPOSE up -d api web
