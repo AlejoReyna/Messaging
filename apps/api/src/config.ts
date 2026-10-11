@@ -17,6 +17,111 @@ export interface AppConfig {
   partnerUsername: string;
   /** Respuesta de la pregunta de alta del invitado (env, minúsculas al comparar). Vacía = alta deshabilitada. */
   guestSetupSecret: string;
+  /** Avisador opcional por correo (deshabilitado si faltan host, remitente o destinatarios). */
+  notify: EmailNotifyConfig;
+  /** Web Push VAPID (contrato v5): aviso genérico sin texto. Deshabilitado si faltan claves o asunto. */
+  push: PushConfig;
+}
+
+export interface EmailNotifyConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  /** true = SMTPS implícito (465); false = STARTTLS si el servidor lo ofrece. */
+  secure: boolean;
+  user: string;
+  /** Nunca se registra ni se expone. Vacía = relay sin autenticación. */
+  password: string;
+  from: string;
+  /** Destino de la cuenta del slot 1 (vacío = sin avisos para esa cuenta). */
+  toSlot1: string;
+  /** Destino de la cuenta del slot 2 (vacío = sin avisos para esa cuenta). */
+  toSlot2: string;
+  timeoutMs: number;
+}
+
+export interface PushConfig {
+  enabled: boolean;
+  /** Clave pública VAPID en base64url (65 bytes sin comprimir, empieza en 0x04). Vacía = push deshabilitado. */
+  publicKey: string;
+  /** Clave privada VAPID en base64url (32 bytes). Nunca se registra ni se expone. Vacía = push deshabilitado. */
+  privateKey: string;
+  /** Contacto del operador: mailto: o https://. Vacío = push deshabilitado. */
+  subject: string;
+}
+
+function base64urlToBytes(value: string): Buffer | null {
+  if (!/^[A-Za-z0-9-_]+$/.test(value) || value.length > 120) return null;
+  try {
+    const padded = value + "=".repeat((4 - (value.length % 4)) % 4);
+    const buf = Buffer.from(padded, "base64");
+    // Re-codificar para rechazar alfabetos o longitudes inválidas.
+    const roundtrip = buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    if (roundtrip !== value.replace(/=+$/, "")) return null;
+    return buf;
+  } catch {
+    return null;
+  }
+}
+
+function parsePushConfig(env: NodeJS.ProcessEnv, isProd: boolean): PushConfig {
+  const publicKey = (env["VAPID_PUBLIC_KEY"] ?? "").trim();
+  const subject = (env["VAPID_SUBJECT"] ?? "").trim();
+  const privateKey = readSecretFile(env["VAPID_PRIVATE_KEY_FILE"], "VAPID_PRIVATE_KEY_FILE", false).trim();
+  if (!publicKey && !privateKey && !subject) {
+    return { enabled: false, publicKey: "", privateKey: "", subject: "" };
+  }
+  const pubBytes = publicKey ? base64urlToBytes(publicKey) : null;
+  if (!publicKey || !pubBytes || pubBytes.length !== 65 || pubBytes[0] !== 0x04) {
+    throw new Error("VAPID_PUBLIC_KEY no válida (base64url de 65 bytes sin comprimir)");
+  }
+  if (!privateKey) {
+    throw new Error("Falta VAPID_PRIVATE_KEY_FILE: define el archivo con la clave privada");
+  }
+  const privBytes = base64urlToBytes(privateKey);
+  if (!privBytes || privBytes.length !== 32) {
+    throw new Error("VAPID_PRIVATE_KEY_FILE no válida (base64url de 32 bytes)");
+  }
+  if (!subject || subject.length > 320 ||
+    (!subject.startsWith("mailto:") && !subject.startsWith("https://"))) {
+    throw new Error("VAPID_SUBJECT no válido (mailto: o https://)");
+  }
+  if (isProd && subject.startsWith("mailto:") && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(subject.slice(7))) {
+    throw new Error("VAPID_SUBJECT no válido");
+  }
+  void isProd;
+  return { enabled: true, publicKey, privateKey, subject };
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function parseEmailNotify(env: NodeJS.ProcessEnv, isProd: boolean): EmailNotifyConfig {
+  const host = (env["SMTP_HOST"] ?? "").trim();
+  const rawPort = (env["SMTP_PORT"] ?? "587").trim();
+  const port = Number(rawPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("SMTP_PORT no válido");
+  const secureValue = (env["SMTP_SECURE"] ?? "false").trim().toLowerCase();
+  const secure = secureValue === "true" || secureValue === "1" || secureValue === "yes";
+  const user = (env["SMTP_USER"] ?? "").trim();
+  const from = (env["NOTIFY_FROM"] ?? "").trim();
+  const toSlot1 = (env["NOTIFY_EMAIL_SLOT1"] ?? "").trim();
+  const toSlot2 = (env["NOTIFY_EMAIL_SLOT2"] ?? "").trim();
+  const rawTimeout = (env["NOTIFY_SMTP_TIMEOUT_MS"] ?? "10000").trim();
+  const timeoutMs = Number(rawTimeout);
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 60000) {
+    throw new Error("NOTIFY_SMTP_TIMEOUT_MS no válido (1000–60000)");
+  }
+  for (const [name, value] of [["NOTIFY_FROM", from], ["NOTIFY_EMAIL_SLOT1", toSlot1], ["NOTIFY_EMAIL_SLOT2", toSlot2]] as const) {
+    if (value && (!EMAIL_RE.test(value) || value.length > 320)) throw new Error(`${name} no válido`);
+  }
+  if (host && host.length > 253) throw new Error("SMTP_HOST no válido");
+  // Contraseña sólo por archivo, como el resto de secretos. Vacía = sin auth.
+  const password = user ? readSecretFile(env["SMTP_PASSWORD_FILE"], "SMTP_PASSWORD_FILE", isProd) : "";
+  const enabled = host.length > 0 && from.length > 0 && (toSlot1.length > 0 || toSlot2.length > 0);
+  if (!enabled && (host || from || toSlot1 || toSlot2 || user)) {
+    throw new Error("Avisos por correo incompletos: define SMTP_HOST, NOTIFY_FROM y al menos un destinatario (NOTIFY_EMAIL_SLOT1/SLOT2)");
+  }
+  return { enabled, host, port, secure, user, password, from, toSlot1, toSlot2, timeoutMs };
 }
 
 function readSecretFile(path: string | undefined, name: string, required: boolean): string {
@@ -95,6 +200,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     adminUsername: (env["ADMIN_USERNAME"] ?? "admin").toLowerCase(),
     partnerUsername: (env["PARTNER_USERNAME"] ?? "member").toLowerCase(),
     guestSetupSecret: readOptionalSecret(env["GUEST_SETUP_SECRET_FILE"]),
+    notify: parseEmailNotify(env, isProd),
+    push: parsePushConfig(env, isProd),
   };
 }
 
@@ -108,5 +215,7 @@ export function configSummary(config: AppConfig): Record<string, string | number
     uploadDir: config.uploadDir,
     deletionJournalPath: config.deletionJournalPath,
     databaseConfigured: config.databaseUrl.length > 0,
+    notifyEnabled: config.notify.enabled,
+    pushEnabled: config.push.enabled,
   };
 }

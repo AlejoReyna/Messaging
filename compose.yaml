@@ -17,6 +17,9 @@ x-api-environment: &api-environment
   ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
   PARTNER_USERNAME: ${PARTNER_USERNAME:-invitado}
   GUEST_SETUP_SECRET_FILE: /run/secrets/guest_setup_secret
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+  VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+  VAPID_PRIVATE_KEY_FILE: /run/secrets/vapid_private_key
 
 services:
   postgres:
@@ -57,7 +60,7 @@ services:
       dockerfile: infra/api.Dockerfile
       target: runtime
     environment: *api-environment
-    secrets: [db_app_password, cookie_secret, csrf_secret, guest_setup_secret]
+    secrets: [db_app_password, cookie_secret, csrf_secret, guest_setup_secret, vapid_private_key]
     volumes: ["uploads:/data/uploads", "deletion_journal:/data/journal"]
     networks: [edge, database]
     depends_on:
@@ -163,3 +166,7 @@ secrets:
   # no los genera porque no son hex aleatorios (PIN de 4 dígitos y respuesta).
   admin_pin: {file: ./.secrets/admin_pin}
   guest_setup_secret: {file: ./.secrets/guest_setup_secret}
+  # Web Push VAPID (contrato v5, opcional). La privada se genera con
+  # scripts/generate-vapid.mjs y nunca va al repo; la pública y el asunto van
+  # por variables de entorno (.env, sin secretos).
+  vapid_private_key: {file: ./.secrets/vapid_private_key}

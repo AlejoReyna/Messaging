@@ -1,10 +1,11 @@
 import { z } from 'zod';
 
-export const CONTRACT_VERSION = 4;
+export const CONTRACT_VERSION = 5;
 export const MAX_MESSAGE_LENGTH = 4000;
 export const MAX_CHAT_PHOTO_BYTES = 5 * 1024 * 1024;
 export const PHOTO_MESSAGE_BODY = '📷 Foto';
 export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+export const PUSH_ENDPOINT_MAX_LENGTH = 2000;
 export const AVATAR_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const CONVERSATION_ID = 1;
 
@@ -146,6 +147,38 @@ export const TypingUpdatedEventSchema = z.strictObject({ userId: uuid, isTyping:
 export const TypingSetInputSchema = z.strictObject({ isTyping: z.boolean() });
 export const SocketAuthSchema = z.strictObject({ csrfToken: z.string().min(16).max(512) });
 
+// Notificaciones push v5: PWA instalada en inicio (iOS 16.4+) con Web Push
+// VAPID y service worker. El payload del push es vacío: el aviso mostrado es
+// genérico ("Nuevo mensaje"), sin texto ni remitente, para no exponer el
+// contenido a los servidores de push (Apple/Google). Sin nuevos eventos de
+// socket: el push es un aviso fuera de banda al crear el mensaje.
+const base64url = z.string().regex(/^[A-Za-z0-9-_]+$/, 'Clave no válida');
+const pushEndpoint = z.string().min(1).max(PUSH_ENDPOINT_MAX_LENGTH)
+  .refine((value) => value.startsWith('https://'), 'Endpoint no válido')
+  .refine((value) => !/[\u0000-\u001f\u007f]/.test(value), 'Endpoint no válido');
+export const PushSubscriptionKeysSchema = z.strictObject({
+  p256dh: base64url.min(80).max(90),
+  auth: base64url.min(20).max(30),
+});
+export const PushSubscriptionSchema = z.strictObject({
+  endpoint: pushEndpoint,
+  keys: PushSubscriptionKeysSchema,
+  expirationTime: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).nullable().optional(),
+});
+export const SavePushSubscriptionInputSchema = z.strictObject({
+  subscription: PushSubscriptionSchema,
+});
+export const DeletePushSubscriptionInputSchema = z.strictObject({
+  endpoint: pushEndpoint,
+});
+export const VapidKeyResponseSchema = z.strictObject({
+  publicKey: z.string().nullable(),
+  enabled: z.boolean(),
+});
+export const PushSubscriptionSavedResponseSchema = z.strictObject({
+  saved: z.literal(true),
+});
+
 export type Conversation = z.infer<typeof ConversationSchema>;
 export type ConversationResponse = z.infer<typeof ConversationResponseSchema>;
 export type Message = z.infer<typeof MessageSchema>;
@@ -161,6 +194,11 @@ export type ReadUpdatedEvent = z.infer<typeof ReadUpdatedEventSchema>;
 export type PresenceUpdatedEvent = z.infer<typeof PresenceUpdatedEventSchema>;
 export type TypingUpdatedEvent = z.infer<typeof TypingUpdatedEventSchema>;
 export type TypingSetInput = z.infer<typeof TypingSetInputSchema>;
+export type PushSubscriptionKeys = z.infer<typeof PushSubscriptionKeysSchema>;
+export type PushSubscription = z.infer<typeof PushSubscriptionSchema>;
+export type SavePushSubscriptionInput = z.infer<typeof SavePushSubscriptionInputSchema>;
+export type DeletePushSubscriptionInput = z.infer<typeof DeletePushSubscriptionInputSchema>;
+export type VapidKeyResponse = z.infer<typeof VapidKeyResponseSchema>;
 
 export const ErrorCodeSchema = z.enum([
   'UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION_ERROR', 'INVALID_CREDENTIALS',
@@ -205,6 +243,7 @@ export const API_ROUTES = {
   changePin: '/api/auth/change-pin',
   me: '/api/users/me', myAvatar: '/api/users/me/avatar', conversation: '/api/conversation',
   messages: '/api/messages', sendPhoto: '/api/messages/photo', read: '/api/conversation/read', clearMessages: '/api/conversation/messages',
+  vapidKey: '/api/push/vapid-key', pushSubscriptions: '/api/push/subscriptions',
   message: (id: string) => `/api/messages/${encodeURIComponent(id)}`,
   messagePhoto: (id: string) => `/api/messages/${encodeURIComponent(id)}/photo`,
   avatar: (id: string, version: number) => `/api/users/${encodeURIComponent(id)}/avatar?v=${version}`,

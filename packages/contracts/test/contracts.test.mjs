@@ -4,6 +4,7 @@ import {
   SendMessageInputSchema, UpdateProfileInputSchema, PublicUserSchema,
   MessagesQuerySchema, MessagesPageSchema, NewPasswordSchema, ChangePasswordInputSchema,
   MessageDeletedEventSchema, TypingSetInputSchema, ApiErrorSchema, MessageSchema,
+  SavePushSubscriptionInputSchema, DeletePushSubscriptionInputSchema, VapidKeyResponseSchema,
 } from '../dist/index.js';
 
 const id = '11111111-1111-4111-8111-111111111111';
@@ -69,4 +70,30 @@ test('páginas y eventos de borrado exigen versión y no aceptan cuerpos de mens
   assert.equal(MessageDeletedEventSchema.safeParse({ messageId: id, conversationVersion: 2, body: 'No conservar' }).success, false);
   assert.equal(TypingSetInputSchema.safeParse({ isTyping: true, userId: id }).success, false);
   assert.equal(ApiErrorSchema.safeParse({ error: { code: 'FORBIDDEN', message: 'No tienes permiso', stack: 'secret' } }).success, false);
+});
+
+test('push v5: suscripción https con claves base64url, sin texto ni secretos', () => {
+  const valid = {
+    subscription: {
+      endpoint: 'https://web.push.apple.com/abc123',
+      keys: { p256dh: `${'B'}${'A'.repeat(86)}`, auth: 'A'.repeat(22) },
+    },
+  };
+  assert.equal(SavePushSubscriptionInputSchema.safeParse(valid).success, true);
+  assert.equal(SavePushSubscriptionInputSchema.safeParse({
+    subscription: { ...valid.subscription, expirationTime: null },
+  }).success, true);
+  for (const bad of [
+    { subscription: { ...valid.subscription, endpoint: 'http://push.example.com/x' } },
+    { subscription: { ...valid.subscription, endpoint: 'https://push.example.com/x', extra: 1 } },
+    { subscription: { endpoint: valid.subscription.endpoint, keys: { p256dh: 'corta', auth: 'A'.repeat(22) } } },
+    { subscription: { endpoint: valid.subscription.endpoint, keys: { p256dh: `${'B'}${'A'.repeat(86)}`, auth: 'corta' } } },
+    { subscription: { ...valid.subscription, keys: { ...valid.subscription.keys, body: 'No conservar' } } },
+  ]) {
+    assert.equal(SavePushSubscriptionInputSchema.safeParse(bad).success, false);
+  }
+  assert.equal(DeletePushSubscriptionInputSchema.safeParse({ endpoint: valid.subscription.endpoint }).success, true);
+  assert.equal(DeletePushSubscriptionInputSchema.safeParse({ endpoint: 'http://push.example.com/x' }).success, false);
+  assert.equal(VapidKeyResponseSchema.safeParse({ publicKey: null, enabled: false }).success, true);
+  assert.equal(VapidKeyResponseSchema.safeParse({ publicKey: `${'B'}${'A'.repeat(86)}`, enabled: true }).success, true);
 });

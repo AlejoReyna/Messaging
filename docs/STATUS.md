@@ -61,3 +61,7 @@ Responder con cita (botón por burbuja, preview cancelable, salto al original) p
 ## Respuestas publicadas — 2026-10-11
 
 Push `7964eff` publicado por CI/CD: citas en producción verificadas (web con UI de respuesta, API sana, migración 0004 aplicada, datos intactos).
+
+## Notificaciones push — 2026-10-11
+
+Contrato v5: PWA instalada en inicio (manifiesto, iconos, `/sw.js` sin caché) + Web Push VAPID con push vacío y aviso genérico “Nuevo mensaje” (sin texto, sin remitente). Endpoints `GET /api/push/vapid-key`, `POST/DELETE /api/push/subscriptions` (tope 10 por cuenta, reasignación del endpoint, borrado sólo propio); el envío dispara a la otra cuenta sin bloquear y poda 404/410. Claves por operador con `scripts/generate-vapid.mjs` (`VAPID_PUBLIC_KEY` + `VAPID_SUBJECT` en entorno, privada en `.secrets/`, ignorada por git). Sin Apple Developer. `npm run verify:local` verde (contratos 8/8, base 6/6, backend 40/40, frontend 71/71, API PostgreSQL 57/57, runtime 3/3). Publicación por CI/CD pendiente; tras el deploy hay que definir VAPID en el VPS y activar en Ajustes de cada iPhone (iOS 16.4+, instalada desde inicio).

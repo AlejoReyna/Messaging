@@ -6,6 +6,7 @@ import { updateProfile, type ApiFailure } from '../lib/api';
 import { useSession } from '../state/session';
 import { AvatarView } from './AvatarView';
 import { PinChangeForm } from './PinChangeForm';
+import { PushSettings } from './PushSettings';
 import { ThemePicker } from './ThemePicker';
 import type { ThemeId } from '../lib/themes';
 
@@ -148,6 +149,8 @@ export function ProfileDialog({ me, theme, onChooseTheme, avatarOpen, onOpenAvat
         </div>
 
         <ThemePicker theme={theme} onChange={onChooseTheme} />
+
+        <PushSettings />
 
         <button type="button" onClick={() => void logout()} disabled={busy}
           className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-surface-muted text-sm font-semibold text-ink hover:bg-surface-hover disabled:opacity-60">

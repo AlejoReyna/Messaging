@@ -29,6 +29,7 @@ model User {
   messages Message[] @relation("SentMessages")
   receipts ReadReceipt[]
   audits   DeletionAudit[] @relation("AuditActor")
+  pushSubscriptions PushSubscription[]
 
   @@schema("chat")
   @@map("users")
@@ -119,4 +120,22 @@ model MessageTombstone {
   @@unique([senderId, clientMessageId])
   @@schema("chat")
   @@map("message_tombstones")
+}
+
+// Suscripciones Web Push (contrato v5): un endpoint por dispositivo/navegador.
+// El push es vacío (sin texto): sólo despierta al service worker, que muestra
+// el aviso genérico. Nunca se guarda contenido de mensajes aquí.
+model PushSubscription {
+  id        String   @id @db.Text
+  userId    String   @map("user_id") @db.Text
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique @db.Text
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@schema("chat")
+  @@map("push_subscriptions")
 }

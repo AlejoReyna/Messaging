@@ -10,10 +10,12 @@ import {
   PinLoginInputSchema,
   PinSetupInputSchema,
   PinStatusResponseSchema,
+  PushSubscriptionSavedResponseSchema,
   ReadUpdatedEventSchema,
   SessionResponseSchema,
   UpdateProfileInputSchema,
   UserResponseSchema,
+  VapidKeyResponseSchema,
   type ChangePasswordInput,
   type ChangePinInput,
   type ConversationResponse,
@@ -26,9 +28,11 @@ import {
   type PinSetupInput,
   type PinStatusResponse,
   type PublicUser,
+  type PushSubscription,
   type SendMessageInput,
   type SessionResponse,
   type UpdateProfileInput,
+  type VapidKeyResponse,
 } from '@private-chat/contracts';
 
 export type { ConversationResponse, Message, MessagesPage, PublicUser, SessionResponse };
@@ -331,4 +335,33 @@ export async function clearConversation(input: DeleteInput, csrfToken: string): 
   const version = (data as { conversationVersion?: unknown }).conversationVersion;
   if (typeof version !== 'number') throw toApiFailure(res.status, 'INTERNAL_ERROR', 'Respuesta no válida del servidor.');
   return { conversationVersion: version };
+}
+
+/** Clave pública VAPID (pública por diseño). Dice si el servidor tiene push activo. */
+export async function getVapidKey(signal?: AbortSignal): Promise<VapidKeyResponse> {
+  const res = await fetch(API_ROUTES.vapidKey, { credentials: 'include', signal });
+  return json(res, (v) => VapidKeyResponseSchema.parse(v));
+}
+
+/** Guarda la suscripción push de este navegador/dispositivo (autenticado + CSRF). */
+export async function savePushSubscription(subscription: PushSubscription, csrfToken: string): Promise<void> {
+  const res = await fetch(API_ROUTES.pushSubscriptions, {
+    method: 'POST',
+    credentials: 'include',
+    headers: headers(csrfToken, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ subscription }),
+  });
+  if (!res.ok) await parseFailure(res);
+  PushSubscriptionSavedResponseSchema.parse(await res.json());
+}
+
+/** Borra la suscripción push de este navegador/dispositivo (idempotente). */
+export async function deletePushSubscription(endpoint: string, csrfToken: string): Promise<void> {
+  const res = await fetch(API_ROUTES.pushSubscriptions, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: headers(csrfToken, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ endpoint }),
+  });
+  if (!res.ok && res.status !== 204) await parseFailure(res);
 }

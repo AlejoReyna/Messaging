@@ -62,7 +62,7 @@ export function migrateTestDb(databaseUrl: string): void {
 
 async function truncateAll(db: PrismaClient): Promise<void> {
   await db.$executeRawUnsafe(
-    `TRUNCATE "chat"."messages", "chat"."message_tombstones", "chat"."deletion_audit", "chat"."sessions", "chat"."read_receipts", "chat"."users", "chat"."conversation" CASCADE`,
+    `TRUNCATE "chat"."messages", "chat"."message_tombstones", "chat"."deletion_audit", "chat"."sessions", "chat"."read_receipts", "chat"."push_subscriptions", "chat"."users", "chat"."conversation" CASCADE`,
   );
 }
 

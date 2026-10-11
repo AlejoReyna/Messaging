@@ -17,6 +17,10 @@ import {
   PinSetupInputSchema,
   PinLoginInputSchema,
   PinStatusResponseSchema,
+  SavePushSubscriptionInputSchema,
+  DeletePushSubscriptionInputSchema,
+  VapidKeyResponseSchema,
+  PushSubscriptionSavedResponseSchema,
   MAX_AVATAR_BYTES,
   PHOTO_MESSAGE_BODY,
   type SendMessageInput,
@@ -45,11 +49,22 @@ import { processChatPhoto } from "../photo.js";
 import { replaceAvatar } from "../avatar-storage.js";
 import { applyConversationClear, applyMessageDeletion, lockConversation } from "../deletions.js";
 import { appendJournalEntry, type JournalEntry } from "../deletion-journal.js";
+import { notifyNewMessage, sendSmtpMail, type SendMailFn } from "../notify.js";
+import {
+  MAX_PUSH_SUBSCRIPTIONS_PER_USER,
+  notifyPushNewMessage,
+  subscriptionIdFor,
+  type PushFetchFn,
+} from "../push.js";
 import { RealtimeHub } from "../realtime.js";
 
 export interface BuildAppOptions {
   config: AppConfig;
   db: PrismaClient;
+  /** Transporte SMTP inyectable (pruebas). Por defecto el cliente real. */
+  notifySendMail?: SendMailFn;
+  /** Transporte push inyectable (pruebas). Por defecto fetch al push service. */
+  pushFetchFn?: PushFetchFn;
 }
 
 interface AuthenticatedContext {
@@ -139,6 +154,8 @@ function zodDetails(error: unknown): string | undefined {
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
   const { config, db } = options;
+  const notifySendMail = options.notifySendMail ?? sendSmtpMail;
+  const pushFetchFn = options.pushFetchFn;
   const app: FastifyInstance = Fastify({
     logger: {
       level: process.env["LOG_LEVEL"] ?? "info",
@@ -181,6 +198,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const PIN_MAX_FAILURES = 10;
   const PIN_LOCK_MS = 30 * 60 * 1000;
   const sendByUser = new MemoryRateLimiter({ maxAttempts: 60, windowMs: 60 * 1000 });
+  const pushByUser = new MemoryRateLimiter({ maxAttempts: 30, windowMs: 60 * 1000 });
 
   // --- Sesión y CSRF -------------------------------------------------------
   app.addHook("onRequest", async (request, reply) => {
@@ -894,7 +912,35 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
     try {
       const result = await send();
-      if (result.created) app.hub?.messageCreated(result.message);
+      if (result.created) {
+        app.hub?.messageCreated(result.message);
+        // Avisador por correo (opcional, fuera del DTO): no bloquea la
+        // respuesta ni registra contenido. Los reintentos idempotentes
+        // (200) no reenvían el aviso.
+        void notifyNewMessage({ config, db, sendMail: notifySendMail, message: result.message, senderId: userId })
+          .then((outcome) => {
+            if (!outcome.sent && outcome.reason !== "disabled" && outcome.reason !== "no-recipient-email") {
+              app.log.warn(`Aviso por correo omitido (${outcome.reason})`);
+            }
+          })
+          .catch((err: unknown) => {
+            const detail = err instanceof Error ? err.message : "error desconocido";
+            app.log.error(`No se pudo enviar el aviso por correo: ${detail}`);
+          });
+        // Push genérico (contrato v5, opcional, fuera del DTO): push vacío,
+        // sin texto ni remitente. No bloquea la respuesta ni registra
+        // contenido o endpoints. Los reintentos idempotentes no reenvían.
+        void notifyPushNewMessage({ config, db, senderId: userId, fetchFn: pushFetchFn })
+          .then((outcome) => {
+            if (outcome.reason !== "disabled" && outcome.reason !== "no-subscriptions" && outcome.sent === 0) {
+              app.log.warn(`Aviso push omitido (${outcome.reason})`);
+            }
+          })
+          .catch((err: unknown) => {
+            const detail = err instanceof Error ? err.message : "error desconocido";
+            app.log.error(`No se pudo enviar el aviso push: ${detail}`);
+          });
+      }
       return reply.status(result.created ? 201 : 200).send({ message: result.message });
     } catch (e: unknown) {
       const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
@@ -958,6 +1004,81 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       lastReadSequence: current.lastReadSequence,
       readAt: current.readAt ? current.readAt.toISOString() : now.toISOString(),
     });
+  });
+
+  // --- Push (contrato v5: PWA + Web Push, aviso genérico sin texto) ---------
+  // La clave pública es pública por diseño VAPID; el endpoint no requiere
+  // sesión para que la UI explique el estado antes de entrar.
+  app.get("/api/push/vapid-key", async (_request, reply) => {
+    return reply.send(VapidKeyResponseSchema.parse({
+      publicKey: config.push.enabled ? config.push.publicKey : null,
+      enabled: config.push.enabled,
+    }));
+  });
+
+  function pushKeysValid(p256dh: string, auth: string): boolean {
+    try {
+      const pad = (value: string): string => {
+        const padded = value + "=".repeat((4 - (value.length % 4)) % 4);
+        return padded.replace(/-/g, "+").replace(/_/g, "/");
+      };
+      const pub = Buffer.from(pad(p256dh), "base64");
+      const sec = Buffer.from(pad(auth), "base64");
+      return pub.length === 65 && pub[0] === 0x04 && sec.length === 16;
+    } catch {
+      return false;
+    }
+  }
+
+  app.post("/api/push/subscriptions", async (request, reply) => {
+    const error = await guard(request, { auth: true, csrf: true });
+    if (error) return fail(reply, error);
+    if (!config.push.enabled) return fail(reply, ERRORS.unavailable());
+    const userId = request.auth!.userId;
+    if (!pushByUser.take(userId)) return fail(reply, ERRORS.rateLimited());
+
+    const parsed = SavePushSubscriptionInputSchema.safeParse(request.body);
+    if (!parsed.success) return fail(reply, ERRORS.validation(zodDetails(parsed.error) ?? "Datos no válidos"));
+    const { endpoint, keys } = parsed.data.subscription;
+    if (!pushKeysValid(keys.p256dh, keys.auth)) {
+      return fail(reply, ERRORS.validation("Suscripción push no válida"));
+    }
+
+    const id = subscriptionIdFor(endpoint);
+    // Un mismo navegador puede cambiar de cuenta: el endpoint se reasigna al
+    // usuario actual en vez de duplicarse.
+    await db.pushSubscription.upsert({
+      where: { endpoint },
+      create: { id, userId, endpoint, p256dh: keys.p256dh, auth: keys.auth },
+      update: { userId, p256dh: keys.p256dh, auth: keys.auth },
+    });
+    // Tope por cuenta: conservar las más recientes.
+    const count = await db.pushSubscription.count({ where: { userId } });
+    if (count > MAX_PUSH_SUBSCRIPTIONS_PER_USER) {
+      const oldest = await db.pushSubscription.findMany({
+        where: { userId },
+        orderBy: { createdAt: "asc" },
+        take: count - MAX_PUSH_SUBSCRIPTIONS_PER_USER,
+        select: { id: true },
+      });
+      if (oldest.length > 0) {
+        await db.pushSubscription.deleteMany({ where: { id: { in: oldest.map((o) => o.id) } } });
+      }
+    }
+    return reply.status(201).send(PushSubscriptionSavedResponseSchema.parse({ saved: true }));
+  });
+
+  app.delete("/api/push/subscriptions", async (request, reply) => {
+    const error = await guard(request, { auth: true, csrf: true });
+    if (error) return fail(reply, error);
+    const userId = request.auth!.userId;
+    if (!pushByUser.take(userId)) return fail(reply, ERRORS.rateLimited());
+
+    const parsed = DeletePushSubscriptionInputSchema.safeParse(request.body);
+    if (!parsed.success) return fail(reply, ERRORS.validation(zodDetails(parsed.error) ?? "Datos no válidos"));
+    // Idempotente y sólo propia: no revela si el endpoint era de otra cuenta.
+    await db.pushSubscription.deleteMany({ where: { endpoint: parsed.data.endpoint, userId } });
+    return reply.status(204).send();
   });
 
   // --- Borrados (propios o admin; vaciado sólo admin) -------------------------
