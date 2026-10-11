@@ -14,5 +14,7 @@ export function localEnvironment(owner = false) {
     UPLOAD_DIR: resolve(projectRoot, '.data/uploads'),
     DELETION_JOURNAL_PATH: resolve(projectRoot, '.data/journal/deletions.jsonl'),
     ADMIN_USERNAME: process.env.ADMIN_USERNAME ?? 'admin', PARTNER_USERNAME: process.env.PARTNER_USERNAME ?? 'invitado',
+    ADMIN_PIN_FILE: resolve(projectRoot, '.secrets/admin_pin'),
+    GUEST_SETUP_SECRET_FILE: resolve(projectRoot, '.secrets/guest_setup_secret'),
   };
 }

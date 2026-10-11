@@ -10,6 +10,8 @@ Referencia de estructura: `docs/reference.png`. Paleta neutra minimalista por de
 
 La tipografía predeterminada de toda la interfaz es Patrick Hand, alojada localmente: acceso, chat, mensajes, botones, campos, ajustes y diálogos. El texto bajo la carita del estado vacío conserva su tamaño pequeño y el espaciado ligero de 0.04em.
 
+Las cuentas nuevas se instalan con nombre Alexis (admin) y Marthiel (member) y las fotos iniciales suministradas por el usuario en `infra/profile/alexis.jpg` e `infra/profile/marthiel.png`. Los assets se incluyen únicamente en la herramienta privada de instalación. Las fotos actuales se sirven mediante el endpoint autenticado existente y se pueden cambiar o quitar; repetir la instalación conserva las decisiones posteriores. PostgreSQL guarda una sola referencia por cuenta, sin historial de imágenes. Cada reemplazo elimina el archivo anterior del almacenamiento activo, con exclusión entre procesos para las escrituras y limpieza de archivos huérfanos al arrancar. Las copias de seguridad mantienen su política de retención propia.
+
 ## Organización y comandos
 
 Monorepo npm workspaces: `@private-chat/contracts`, `@private-chat/web`, `@private-chat/api`. Node 24 LTS en producción; ESM; TypeScript estricto. Raíz y lockfile del principal. Apps con scripts `dev`, `build`, `typecheck`, `test`; el backend añade `test:integration`, `db:migrate`, `db:seed`, `db:grant` y `db:reconcile-deletions`.
@@ -27,7 +29,11 @@ Prefijo `/api`; JSON salvo upload/download. Las mutaciones llevan `X-CSRF-Token`
 | GET `/health` | — | `{status:"ok"}` | público; liveness |
 | GET `/ready` | — | `{status:"ok"}` o 503 | público; comprobar PostgreSQL sin revelar detalles |
 | GET `/auth/session` | — | `{user: PublicUser \| null, csrfToken: string}` | público |
-| POST `/auth/login` | LoginInput | SessionResponse | público + CSRF; 200 |
+| POST `/auth/login` | LoginInput | SessionResponse | público + CSRF; 200; sólo admin y member sin PIN (recuperación, sin UI) |
+| GET `/auth/pin-status` | — | `{memberPinSet: boolean}` | público; indica si el invitado ya creó su código |
+| POST `/auth/pin-setup` | PinSetupInput `{answer, pin}` | SessionResponse (member) | público + CSRF; 201 una sola vez; 409 si ya existe |
+| POST `/auth/pin-login` | PinLoginInput `{pin}` | SessionResponse | público + CSRF; 200; el servidor decide la cuenta |
+| POST `/auth/change-pin` | ChangePinInput | `{user: PublicUser}` | autenticado + CSRF |
 | POST `/auth/logout` | `{}` | 204 | CSRF; idempotente |
 | POST `/auth/change-password` | ChangePasswordInput | SessionResponse | autenticado + CSRF |
 | PATCH `/users/me` | UpdateProfileInput | `{user: PublicUser}` | autenticado + CSRF |
@@ -41,7 +47,7 @@ Prefijo `/api`; JSON salvo upload/download. Las mutaciones llevan `X-CSRF-Token`
 | DELETE `/messages/:messageId` | `{conversationVersion: number}` | MessageDeletedEvent | admin + CSRF |
 | DELETE `/conversation/messages` | `{conversationVersion: number}` | ConversationClearedEvent | admin + CSRF |
 
-`mustChangePassword` permite únicamente sesión, logout y cambio de contraseña hasta completarlo. El resto responde 403 `PASSWORD_CHANGE_REQUIRED`. Username único, editable, ASCII 3–32 caracteres (`a-z`, `0-9`, `_`, `.`, `-`); normalizar a minúsculas. DisplayName 1–60; body 1–4000 tras trim; contraseña nueva 15–128 sin trim. Avatares JPEG/PNG/WebP de hasta 5 MiB, decodificados y reexportados con Sharp a formato seguro, sin EXIF. Nunca aceptar SVG ni construir rutas del disco desde nombres aportados por el cliente.
+`mustChangePassword` permite únicamente sesión, logout y cambio de contraseña hasta completarlo. El resto responde 403 `PASSWORD_CHANGE_REQUIRED`. El acceso de la UI es con PIN de 4 dígitos (contrato v2): hash Argon2id en `users.pin_hash`, 10 fallos globales → bloqueo 30 min (`PIN_LOCKED`), límite por IP y verificación de ambos slots sin oráculo. El alta del invitado (slot 2) ocurre una sola vez tras la pregunta secreta del servidor (`GUEST_SETUP_SECRET_FILE`, nunca en repo ni cliente); el PIN del admin se aprovisiona con `ADMIN_PIN_FILE`. La cuenta de invitado con PIN rechaza el login con contraseña (`PIN_REQUIRED`); el login con contraseña queda sólo como recuperación del admin, sin UI. Username único, editable, ASCII 3–32 caracteres (`a-z`, `0-9`, `_`, `.`, `-`); normalizar a minúsculas. DisplayName 1–60; body 1–4000 tras trim; contraseña nueva 15–128 sin trim. Avatares JPEG/PNG/WebP de hasta 5 MiB, decodificados y reexportados con Sharp a formato seguro, sin EXIF. Nunca aceptar SVG ni construir rutas del disco desde nombres aportados por el cliente.
 
 `MessagesQuery`: `limit` 1–100 (default 50), `before` o `after` por sequence, nunca ambos. Historial inicial devuelve los últimos N, ordenados ascendentemente. `before` devuelve los N anteriores; `after` devuelve los siguientes N. `hasMore` y `nextCursor` corresponden a la dirección solicitada. `conversationVersion` se devuelve siempre.
 

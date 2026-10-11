@@ -16,6 +16,7 @@ x-api-environment: &api-environment
   DELETION_JOURNAL_PATH: /data/journal/deletions.jsonl
   ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
   PARTNER_USERNAME: ${PARTNER_USERNAME:-invitado}
+  GUEST_SETUP_SECRET_FILE: /run/secrets/guest_setup_secret
 
 services:
   postgres:
@@ -54,7 +55,7 @@ services:
       dockerfile: infra/api.Dockerfile
       target: runtime
     environment: *api-environment
-    secrets: [db_app_password, cookie_secret, csrf_secret]
+    secrets: [db_app_password, cookie_secret, csrf_secret, guest_setup_secret]
     volumes: ["uploads:/data/uploads", "deletion_journal:/data/journal"]
     networks: [edge, database]
     depends_on:
@@ -97,10 +98,11 @@ services:
     profiles: [tools]
     environment:
       <<: *api-environment
+      ADMIN_PIN_FILE: /run/secrets/admin_pin
       DATABASE_USER: private_chat_owner
       DATABASE_PASSWORD_FILE: /run/secrets/db_owner_password
       RUNTIME_PASSWORD_FILE: /run/secrets/db_app_password
-    secrets: [db_owner_password, db_app_password, cookie_secret, csrf_secret]
+    secrets: [db_owner_password, db_app_password, cookie_secret, csrf_secret, admin_pin]
     volumes: ["uploads:/data/uploads", "deletion_journal:/data/journal"]
     networks: [database]
     depends_on:
@@ -155,3 +157,7 @@ secrets:
   csrf_secret: {file: ./.secrets/csrf_secret}
   backup_password: {file: ./.secrets/backup_password}
   backup_repository: {file: ./.secrets/backup_repository}
+  # Acceso con PIN v2 (contrato v2). Los crea el operador a mano; init-secrets
+  # no los genera porque no son hex aleatorios (PIN de 4 dígitos y respuesta).
+  admin_pin: {file: ./.secrets/admin_pin}
+  guest_setup_secret: {file: ./.secrets/guest_setup_secret}

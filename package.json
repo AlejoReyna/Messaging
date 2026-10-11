@@ -22,7 +22,7 @@
     "backup": "node scripts/backup.mjs",
     "test:db:start": "node scripts/test-db.mjs start",
     "test:db:stop": "node scripts/test-db.mjs stop",
-    "test:runtime": "node --import tsx --test scripts/integration/*.test.mjs",
+    "test:runtime": "node --import tsx --test --test-concurrency=1 scripts/integration/*.test.mjs",
     "verify:local": "node scripts/test-db.mjs verify",
     "preview:local": "node --import tsx scripts/preview-local.mjs",
     "check:foundation": "npm run build:contracts && npm run test --workspace @private-chat/contracts && node --test scripts/test/*.test.mjs",
