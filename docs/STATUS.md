@@ -57,3 +57,7 @@ Commit `89d4de1` publicado por el flujo CI/CD (CI + Deploy verdes): stickers, fo
 ## Respuestas citadas — 2026-10-11
 
 Responder con cita (botón por burbuja, preview cancelable, salto al original) para texto, stickers y fotos, contrato v4 y migración 0004. `npm run verify:local` 163/163. Publicación por CI/CD pendiente.
+
+## Respuestas publicadas — 2026-10-11
+
+Push `7964eff` publicado por CI/CD: citas en producción verificadas (web con UI de respuesta, API sana, migración 0004 aplicada, datos intactos).
