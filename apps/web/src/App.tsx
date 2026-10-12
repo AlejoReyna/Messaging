@@ -9,6 +9,7 @@ import { ProfileDialog } from './components/ProfileDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { AvatarEditor } from './components/AvatarEditor';
 import { useTheme } from './lib/themes';
+import { useFont } from './lib/fonts';
 
 function Shell() {
   const session = useSession();
@@ -16,8 +17,9 @@ function Shell() {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
   const closeAvatar = useCallback(() => setAvatarOpen(false), []);
-  // Tema guardado de la cuenta; se expone en el diálogo de ajustes.
+  // Tema y tipografía guardados de la cuenta; se exponen en el diálogo de ajustes.
   const { theme, chooseTheme } = useTheme(session.user?.id);
+  const { font, chooseFont } = useFont(session.user?.id);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
@@ -168,7 +170,7 @@ function Shell() {
         />
       </div>
 
-      {settingsOpen && <ProfileDialog me={me} theme={theme} onChooseTheme={chooseTheme}
+      {settingsOpen && <ProfileDialog me={me} theme={theme} onChooseTheme={chooseTheme} font={font} onChooseFont={chooseFont}
         avatarOpen={avatarOpen} onOpenAvatar={() => setAvatarOpen(true)} onClose={closeSettings} />}
       {avatarOpen && <AvatarEditor me={me} csrfToken={session.csrfToken}
         onSaved={session.setUser} onClose={closeAvatar} />}

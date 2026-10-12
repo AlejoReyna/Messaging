@@ -9,6 +9,58 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Inter";
+  src: url("./assets/fonts/inter/inter-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("./assets/fonts/inter/inter-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nunito";
+  src: url("./assets/fonts/nunito/nunito-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nunito";
+  src: url("./assets/fonts/nunito/nunito-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nunito";
+  src: url("./assets/fonts/nunito/nunito-800.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Serif";
+  src: url("./assets/fonts/noto-serif/noto-serif-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Serif";
+  src: url("./assets/fonts/noto-serif/noto-serif-600.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
 @theme {
   --color-canvas: #f3f3f1;
   --color-surface: #ffffff;
@@ -38,6 +90,29 @@ html, body {
   overscroll-behavior: none;
   /* Match the navbar where iOS paints the status bar and viewport edges. */
   background: var(--color-surface);
+}
+
+/* Selector de fuente por cuenta (Ajustes › Tipografía). Gana a @theme por
+   especificidad (html[data-font]) y no requiere peticiones externas:
+   Inter/Nunito/Noto Serif viajan en el bundle; SF Mono usa la instalada. */
+html[data-font="patrick-hand"], html:not([data-font]) {
+  --font-sans: "Patrick Hand", "Segoe Print", "Bradley Hand", cursive;
+}
+html[data-font="inter"] {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html[data-font="nunito"] {
+  --font-sans: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html[data-font="noto-serif"] {
+  --font-sans: "Noto Serif", Georgia, "Times New Roman", serif;
+}
+html[data-font="sf-mono-light"] {
+  --font-sans: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+html[data-font="sf-mono-light"] body {
+  font-weight: 300;
+  letter-spacing: 0.01em;
 }
 
 body {

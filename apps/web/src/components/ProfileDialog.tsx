@@ -8,12 +8,16 @@ import { AvatarView } from './AvatarView';
 import { PinChangeForm } from './PinChangeForm';
 import { PushSettings } from './PushSettings';
 import { ThemePicker } from './ThemePicker';
+import { FontPicker } from './FontPicker';
 import type { ThemeId } from '../lib/themes';
+import type { FontId } from '../lib/fonts';
 
-export function ProfileDialog({ me, theme, onChooseTheme, avatarOpen, onOpenAvatar, onClose }: {
+export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, avatarOpen, onOpenAvatar, onClose }: {
   me: PublicUser;
   theme: ThemeId;
   onChooseTheme: (theme: ThemeId) => void;
+  font: FontId;
+  onChooseFont: (font: FontId) => void;
   avatarOpen: boolean;
   onOpenAvatar: () => void;
   onClose: () => void;
@@ -149,6 +153,8 @@ export function ProfileDialog({ me, theme, onChooseTheme, avatarOpen, onOpenAvat
         </div>
 
         <ThemePicker theme={theme} onChange={onChooseTheme} />
+
+        <FontPicker font={font} onChange={onChooseFont} />
 
         <PushSettings />
 

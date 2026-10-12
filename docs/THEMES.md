@@ -20,6 +20,10 @@ La preferencia usa la clave `private-chat:theme:<userId>` en localStorage y sól
 
 El nombre y el avatar siguen guardándose por las rutas existentes del contrato, con cookies y CSRF. Los nombres Alexis (admin) y Marthiel (member) corresponden a las cuentas de vista previa QA; no se inventan ni modifican cuentas de producción. El bootstrap de preview conserva las posteriores ediciones del nombre.
 
+## Tipografías (Ajustes › Tipografía)
+
+5 opciones; Patrick Hand sigue siendo la predeterminada de toda la interfaz. Inter, Nunito y Noto Serif viajan autohospedadas en `apps/web/src/assets/fonts/` (woff2 latin + avisos OFL), sin peticiones externas ni cambios de DTO: la preferencia usa la clave `private-chat:font:<userId>` en localStorage, por cuenta y navegador, igual que el tema. SF Mono Light no se distribuye (propietaria de Apple): si está instalada en el dispositivo se usa en peso ligero, y en el resto cae a la monoespaciada del sistema (`ui-monospace`).
+
 La foto seleccionada usa una URL blob local, revocada al reemplazar la selección o cerrar la vista. Guardar queda deshabilitado hasta que el navegador decodifique la imagen. Cancelar no sube ni guarda archivos. Un error del servidor conserva la selección para permitir reintentar. La CSP existente admite imágenes blob y sigue prohibiendo scripts y estilos inline.
 
 ## Área superior de iPhone

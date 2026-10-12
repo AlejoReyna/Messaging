@@ -4,8 +4,10 @@ import type { PublicUser } from '@private-chat/contracts';
 import { AvatarEditor } from './AvatarEditor';
 import { AvatarPreview } from './AvatarPreview';
 import { ThemePicker } from './ThemePicker';
+import { FontPicker } from './FontPicker';
 import { ProfileDialog } from './ProfileDialog';
 import { DEFAULT_THEME, THEMES, useTheme } from '../lib/themes';
+import { DEFAULT_FONT, FONTS, useFont } from '../lib/fonts';
 
 const me: PublicUser = {
   id: '11111111-1111-4111-8111-111111111111', username: 'adminqa', displayName: 'Marthiel',
@@ -39,7 +41,7 @@ beforeEach(() => {
     static revokeObjectURL = revoke;
   });
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); delete document.documentElement.dataset.theme; });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); delete document.documentElement.dataset.theme; delete document.documentElement.dataset.font; });
 
 function editor() {
   const onSaved = vi.fn();
@@ -122,7 +124,7 @@ describe('vista previa del avatar', () => {
 
 describe('personalización por cuenta', () => {
   it('el lápiz enfoca el nombre y guardar modifica únicamente el perfil propio con CSRF', async () => {
-    render(<ProfileDialog me={me} theme="github-light" onChooseTheme={vi.fn()} avatarOpen={false}
+    render(<ProfileDialog me={me} theme="github-light" onChooseTheme={vi.fn()} font="patrick-hand" onChooseFont={vi.fn()} avatarOpen={false}
       onOpenAvatar={vi.fn()} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Editar nombre de Marthiel' }));
     const name = screen.getByRole('textbox', { name: 'Nombre visible' });
@@ -138,11 +140,12 @@ describe('personalización por cuenta', () => {
     expect(JSON.parse(options.body)).toEqual({ displayName: 'Marthiel Actualizado' });
   });
 
-  it('el diálogo de ajustes expone el selector de temas', () => {
-    render(<ProfileDialog me={me} theme="github-light" onChooseTheme={vi.fn()} avatarOpen={false}
+  it('el diálogo de ajustes expone los selectores de tema y fuente', () => {
+    render(<ProfileDialog me={me} theme="github-light" onChooseTheme={vi.fn()} font="patrick-hand" onChooseFont={vi.fn()} avatarOpen={false}
       onOpenAvatar={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByRole('group', { name: 'Elige el tema del chat' })).toBeInTheDocument();
-    expect(screen.getAllByRole('radio')).toHaveLength(THEMES.length);
+    expect(screen.getByRole('group', { name: 'Elige la fuente del chat' })).toBeInTheDocument();
+    expect(screen.getAllByRole('radio')).toHaveLength(THEMES.length + FONTS.length);
   });
 
   it('muestra todos los temas seleccionables del catálogo', () => {
@@ -151,6 +154,30 @@ describe('personalización por cuenta', () => {
     expect(screen.getAllByRole('radio')).toHaveLength(THEMES.length);
     fireEvent.click(screen.getByRole('radio', { name: /Dracula/ }));
     expect(onChange).toHaveBeenCalledWith('dracula');
+  });
+
+  it('muestra todas las fuentes seleccionables del catálogo', () => {
+    const onChange = vi.fn();
+    render(<FontPicker font="patrick-hand" onChange={onChange} />);
+    expect(screen.getAllByRole('radio')).toHaveLength(FONTS.length);
+    fireEvent.click(screen.getByRole('radio', { name: /Noto Serif/ }));
+    expect(onChange).toHaveBeenCalledWith('noto-serif');
+    fireEvent.click(screen.getByRole('radio', { name: /SF Mono Light/ }));
+    expect(onChange).toHaveBeenCalledWith('sf-mono-light');
+  });
+
+  it('recuerda la fuente tras recargar, separa las cuentas y rechaza preferencias desconocidas', () => {
+    const first = renderHook(({ id }) => useFont(id), { initialProps: { id: 'account-one' } });
+    act(() => first.result.current.chooseFont('noto-serif'));
+    expect(document.documentElement.dataset.font).toBe('noto-serif');
+    first.unmount();
+    const next = renderHook(({ id }) => useFont(id), { initialProps: { id: 'account-one' } });
+    expect(next.result.current.font).toBe('noto-serif');
+    next.rerender({ id: 'account-two' });
+    expect(next.result.current.font).toBe(DEFAULT_FONT);
+    window.localStorage.setItem('private-chat:font:account-three', 'unrecognized-font');
+    next.rerender({ id: 'account-three' });
+    expect(next.result.current.font).toBe(DEFAULT_FONT);
   });
 
   it('recuerda el tema tras recargar, separa las cuentas y rechaza preferencias desconocidas', () => {
