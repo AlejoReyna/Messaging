@@ -10,6 +10,7 @@ export interface PendingMessage {
   error?: string;
   photo?: File;
   video?: File;
+  audio?: File;
   replyTo?: ReplySnapshot;
 }
 

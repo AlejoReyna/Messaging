@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 
-// Catálogo de fuentes de la interfaz. Patrick Hand sigue siendo la predeterminada.
+// Catálogo de fuentes de la interfaz. Inter es la predeterminada.
 // Inter, Nunito y Noto Serif se sirven desde el propio dominio (archivos woff2 en
 // src/assets/fonts, licencias OFL junto a ellos). SF Mono Light NO se distribuye:
 // es propietaria de Apple y sólo se usa si ya está instalada en el dispositivo
 // (pila ui-monospace del sistema); en otros dispositivos cae al monoespaciado local.
 export const FONTS = [
-  { id: 'patrick-hand', name: 'Patrick Hand', note: 'Actual · manuscrita', sample: 'Aa' },
+  { id: 'patrick-hand', name: 'Patrick Hand', note: 'Manuscrita', sample: 'Aa' },
   { id: 'inter', name: 'Inter', note: 'Neutra · máxima legibilidad', sample: 'Aa' },
   { id: 'nunito', name: 'Nunito', note: 'Redondeada · cercana al mock', sample: 'Aa' },
   { id: 'noto-serif', name: 'Noto Serif', note: 'Serif ligera · estilo Times', sample: 'Aa' },
@@ -14,7 +14,7 @@ export const FONTS = [
 ] as const;
 
 export type FontId = typeof FONTS[number]['id'];
-export const DEFAULT_FONT: FontId = 'patrick-hand';
+export const DEFAULT_FONT: FontId = 'inter';
 
 function isFont(value: string | null): value is FontId {
   return FONTS.some((font) => font.id === value);

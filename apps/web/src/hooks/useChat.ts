@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PHOTO_MESSAGE_BODY, VIDEO_MESSAGE_BODY, type Message, type PublicUser } from '@private-chat/contracts';
+import { PHOTO_MESSAGE_BODY, VIDEO_MESSAGE_BODY, AUDIO_MESSAGE_BODY, type Message, type PublicUser } from '@private-chat/contracts';
 import {
   clearConversation,
   deleteMessage as apiDeleteMessage,
@@ -9,6 +9,7 @@ import {
   sendMessage as apiSendMessage,
   sendPhoto as apiSendPhoto,
   sendVideo as apiSendVideo,
+  sendAudio as apiSendAudio,
   type ApiFailure,
 } from '../lib/api';
 import {
@@ -48,6 +49,7 @@ interface ChatApi {
   send: (body: string, replyTo?: ReplyTarget | null) => Promise<void>;
   sendPhoto: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void>;
   sendVideo: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void>;
+  sendAudio: (file: File, replyTo?: ReplyTarget | null) => Promise<void>;
   retry: (clientMessageId: string) => Promise<void>;
   discardPending: (clientMessageId: string) => void;
   loadMore: () => Promise<void>;
@@ -340,8 +342,8 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     } catch { /* sin conexión: se ignora */ }
   }, []);
 
-  const sendContent = useCallback(async (raw: string, photo?: File, replyTo?: ReplyTarget | null, video?: File) => {
-    const body = raw.trim() || (photo ? PHOTO_MESSAGE_BODY : video ? VIDEO_MESSAGE_BODY : '');
+  const sendContent = useCallback(async (raw: string, photo?: File, replyTo?: ReplyTarget | null, video?: File, audio?: File) => {
+    const body = raw.trim() || (photo ? PHOTO_MESSAGE_BODY : video ? VIDEO_MESSAGE_BODY : audio ? AUDIO_MESSAGE_BODY : '');
     if (!body || !me) return;
     if (body.length > 4000) {
       setNotice('El mensaje no debe superar 4000 caracteres.');
@@ -350,11 +352,13 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     const clientMessageId = uuid();
     const v = versionRef.current;
     const replySnapshot = replyTo ? snapshotOf(replyTo.message, replyTo.author) : undefined;
-    setPending((prev) => [...prev, { clientMessageId, body, conversationVersion: v, status: 'pending', photo, video, ...(replySnapshot ? { replyTo: replySnapshot } : {}) }]);
+    setPending((prev) => [...prev, { clientMessageId, body, conversationVersion: v, status: 'pending', photo, video, audio, ...(replySnapshot ? { replyTo: replySnapshot } : {}) }]);
     try {
       const input = { clientMessageId, body, conversationVersion: v };
       const replyId = replyTo?.message.id;
-      const { message } = await (video
+      const { message } = await (audio
+        ? apiSendAudio(audio, input, csrfToken, replyId)
+        : video
         ? apiSendVideo(video, input, csrfToken, replyId)
         : photo
         ? apiSendPhoto(photo, input, csrfToken, replyId)
@@ -395,6 +399,8 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
   const sendPhoto = useCallback((file: File, caption: string, replyTo?: ReplyTarget | null) => sendContent(caption, file, replyTo), [sendContent]);
   const sendVideo = useCallback((file: File, caption: string, replyTo?: ReplyTarget | null) => sendContent(caption, undefined, replyTo, file), [sendContent]);
 
+  const sendAudio = useCallback((file: File, replyTo?: ReplyTarget | null) => sendContent('', undefined, replyTo, undefined, file), [sendContent]);
+
   const retry = useCallback(async (clientMessageId: string) => {
     const item = pending.find((p) => p.clientMessageId === clientMessageId);
     if (!item) return;
@@ -408,7 +414,9 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     try {
       const input = { clientMessageId: item.clientMessageId, body: item.body, conversationVersion: versionRef.current };
       const replyId = item.replyTo?.messageId;
-      const { message } = await (item.video
+      const { message } = await (item.audio
+        ? apiSendAudio(item.audio, input, csrfToken, replyId)
+        : item.video
         ? apiSendVideo(item.video, input, csrfToken, replyId)
         : item.photo
         ? apiSendPhoto(item.photo, input, csrfToken, replyId)
@@ -521,7 +529,7 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     messages, pending, partner, version,
     loading, loadingMore, hasMore, loadError, connected,
     partnerTyping, partnerOnline, readByPartner, myRead,
-    send, sendPhoto, sendVideo, retry, discardPending, loadMore, reload,
+    send, sendPhoto, sendVideo, sendAudio, retry, discardPending, loadMore, reload,
     removeMessage, clearAll, setTyping, notice,
   };
 }

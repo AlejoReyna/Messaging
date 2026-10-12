@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 // Paletas existentes, adaptadas a los roles de color de la conversación.
 // Las fuentes oficiales y los ajustes de contraste están en docs/THEMES.md.
 export const THEMES = [
+  { id: 'telegram-dark', name: 'Telegram Dark', mode: 'Oscuro' },
   { id: 'github-light', name: 'GitHub Light', mode: 'Claro' },
   { id: 'cocoa', name: 'Cocoa', mode: 'Claro' },
   { id: 'github-dark', name: 'GitHub Dark', mode: 'Oscuro' },
@@ -17,8 +18,8 @@ export const THEMES = [
 ] as const;
 
 export type ThemeId = typeof THEMES[number]['id'];
-export const DEFAULT_THEME: ThemeId = 'github-light';
-export const MEMBER_DEFAULT_THEME: ThemeId = 'cocoa';
+export const DEFAULT_THEME: ThemeId = 'telegram-dark';
+export const MEMBER_DEFAULT_THEME: ThemeId = 'telegram-dark';
 
 function isTheme(value: string | null): value is ThemeId {
   return THEMES.some((theme) => theme.id === value);

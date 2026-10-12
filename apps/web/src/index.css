@@ -81,7 +81,7 @@
   --color-overlay: #202420;
   --shadow-panel: 0 8px 30px rgb(32 36 32 / 0.04);
   --shadow-dialog: 0 16px 48px rgb(32 36 32 / 0.12);
-  --font-sans: "Patrick Hand", "Segoe Print", "Bradley Hand", cursive;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 html, body {
@@ -95,10 +95,10 @@ html, body {
 /* Selector de fuente por cuenta (Ajustes › Tipografía). Gana a @theme por
    especificidad (html[data-font]) y no requiere peticiones externas:
    Inter/Nunito/Noto Serif viajan en el bundle; SF Mono usa la instalada. */
-html[data-font="patrick-hand"], html:not([data-font]) {
+html[data-font="patrick-hand"] {
   --font-sans: "Patrick Hand", "Segoe Print", "Bradley Hand", cursive;
 }
-html[data-font="inter"] {
+html[data-font="inter"], html:not([data-font]) {
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 html[data-font="nunito"] {
@@ -274,3 +274,69 @@ body {
 }
 .typing-dot:nth-child(2) { animation-delay: 0.15s; }
 .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+/* Telegram iOS: black canvas, floating controls, grouped settings and soft bubbles. */
+.chat-panel[data-background="doodle"], .background-preview[data-background="doodle"] {
+  background-color: #06070b;
+  background-image: url('./assets/backgrounds/doodle.svg?no-inline');
+  background-size: 360px 360px;
+}
+[data-background="midnight"] { background: #000000; }
+[data-background="ocean"] { background: #0c1c2e; }
+[data-background="plum"] { background: #24162c; }
+[data-background="sand"] { background: #887c65; }
+.chat-header { background: color-mix(in srgb, var(--color-canvas) 68%, transparent); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border-bottom: 1px solid color-mix(in srgb, var(--color-line) 65%, transparent); }
+.chat-header > button:first-of-type { order: 2; margin-left: 0.25rem; }
+.chat-header > div.min-w-0 { order: 1; padding: 0.25rem 0; text-align: center; border: 0; background: transparent; border-radius: 0; box-shadow: none; }
+.chat-header-actions { order: 0; }
+.chat-header-actions > button { background: var(--color-surface); border: 1px solid var(--color-line); }
+.chat-footer { background: linear-gradient(transparent, color-mix(in srgb, var(--color-canvas) 92%, transparent)); }
+.chat-day time { display: inline-block; background: var(--color-surface); padding: 0.35rem 0.9rem; border-radius: 999px; }
+.message-bubble > span[aria-hidden="true"] { display: none; }
+html[data-theme="telegram-dark"] .message-bubble { border-color: transparent; }
+html[data-theme="telegram-dark"] .message-bubble.bg-surface { background: #24242b; }
+.message-audio { width: 280px; max-width: 100%; }
+.composer-attachments { display: none; }
+.composer-attachments.is-open { position: absolute; display: flex; bottom: calc(100% + 10px); left: 0; z-index: 20; padding: 0.5rem; gap: 0.5rem; border: 1px solid var(--color-line); border-radius: 1.3rem; background: var(--color-surface); box-shadow: var(--shadow-dialog); }
+.composer-attachments.is-open > button { width: auto; padding: 0 12px; }
+.composer-attachments.is-open > button[aria-label="Enviar foto"]::after { content: 'Foto'; font-size: 14px; margin-left: 8px; }
+.composer-attachments.is-open > button[aria-label="Enviar video"]::after { content: 'Video'; font-size: 14px; margin-left: 8px; }
+.composer-attachments.is-open > button { display: flex; }
+.voice-active .composer-attachment, .voice-active .composer-input { display: none; }
+.voice-panel { width: 100%; }
+.voice-idle { position: relative; }
+.voice-error { position: absolute; width: min(320px, 80vw); right: 0; bottom: calc(100% + 1rem); z-index: 20; border: 1px solid var(--color-line); background: var(--color-surface); padding: 1rem; border-radius: 1rem; }
+.settings-card { border-radius: 24px; padding: 20px; background: var(--color-surface); border: 1px solid var(--color-line); }
+.profile-panel { background: var(--color-canvas); }
+.settings-toolbar { top: -1.5rem; margin: -1.5rem -1.5rem 0; padding-left: 1.5rem; padding-right: 1.5rem; }
+.profile-heading { position: relative; padding-top: 1.5rem; }
+.profile-identity { flex: 1; flex-direction: column; text-align: center; }
+.profile-identity > div { max-width: 100%; }
+.profile-identity h2 { margin-top: 0.7rem; font-size: 26px; line-height: 1.4; }
+.profile-identity h2 button { margin: auto; }
+.profile-identity > div > p:last-child { margin-top: 0.4rem; max-width: 270px; line-height: 1.5; }
+
+.profile-panel > section { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 24px; padding: 20px; }
+@media (min-width: 768px) {
+  .chat-header { min-height: 96px; }
+  .chat-header > div.min-w-0 { flex: none; width: min(400px, 50%); margin-right: auto; }
+  .chat-header > button:first-of-type { order: 0; }
+  .chat-header-actions { order: 2; }
+  .chat-scroll { padding-left: max(2rem, calc((100% - 800px) / 2)); padding-right: max(2rem, calc((100% - 800px) / 2)); }
+  .chat-footer > form { max-width: 840px; margin: auto; }
+}
+@media (max-width: 767px) {
+  .chat-header { gap: 0.5rem; padding-left: 0.75rem; padding-right: 0.75rem; padding-top: max(0.7rem, env(safe-area-inset-top)); }
+  .chat-header > div.min-w-0 { padding: 0.25rem 0; }
+  .chat-header-actions > button { min-height: 40px; min-width: 40px; }
+  .chat-header-actions { gap: 0.25rem; }
+  .chat-header-actions > button[aria-label="Abrir ajustes y perfil"] { display: none; }
+  .connection-status { position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); z-index: 10; border: 1px solid var(--color-line); background: var(--color-surface); }
+  .settings-overlay { padding: 0; }
+  .profile-panel { height: 100dvh; max-height: 100dvh; max-width: none; border: 0; border-radius: 0; padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom)); }
+  .settings-toolbar { top: -1rem; margin: -1rem -1rem 0; padding-left: 1rem; padding-right: 1rem; padding-top: max(0.5rem, env(safe-area-inset-top)); }
+  .profile-heading { padding-top: 1.5rem; }
+  .profile-identity h2 { font-size: 28px; }
+  .chat-footer { padding-bottom: 0.5rem; }
+  .voice-panel .flex { gap: 0.5rem; }
+}

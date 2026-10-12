@@ -7,6 +7,8 @@ import {
   pinLogin,
   pinSetup,
   sendMessage,
+  sendAudio,
+  validateAudioFile,
   validateAvatarFile,
 } from './api';
 
@@ -130,5 +132,34 @@ describe('contrato HTTP del cliente', () => {
       { status: 401, headers: { 'Content-Type': 'application/json' } },
     )));
     await expect(getMessages({ limit: 10 })).rejects.toMatchObject({ code: 'UNAUTHENTICATED', status: 401 });
+  });
+});
+
+
+describe('notas de voz HTTP', () => {
+  it('envía multipart con cookies, CSRF, versión y cita, y valida respuesta del contrato', async () => {
+    const id = '22222222-2222-4222-8222-222222222222';
+    const input = { clientMessageId: '33333333-3333-4333-8333-333333333333', body: '🎤 Nota de voz', conversationVersion: 4 };
+    const message = { ...input, id, senderId: '11111111-1111-4111-8111-111111111111', sequence: 7, createdAt: '2026-10-12T12:00:00.000Z', audioUrl: `/api/messages/${id}/audio`, audioDurationSeconds: 4 };
+    delete (message as Partial<typeof message>).conversationVersion;
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ message }), { status: 201 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const file = new File(['audio bytes'], 'voice.webm', { type: 'audio/webm' });
+    const result = await sendAudio(file, input, 'csrf-token-largo-1234567890', id);
+    expect(result.message.audioDurationSeconds).toBe(4);
+    const [route, options] = fetchMock.mock.calls[0]!;
+    expect(route).toBe('/api/messages/audio');
+    expect(options).toMatchObject({ method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': 'csrf-token-largo-1234567890' } });
+    expect(options.headers).not.toHaveProperty('Content-Type');
+    expect(options.body.get('conversationVersion')).toBe('4');
+    expect(options.body.get('replyToMessageId')).toBe(id);
+    expect(options.body.get('audio').size).toBe(file.size);
+  });
+  it('rechaza vacíos, archivos grandes y tipos ajenos sin llamar al servidor', async () => {
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    expect(validateAudioFile(new File([], 'voice.webm', { type: 'audio/webm' }))).toMatch(/10 MiB/);
+    expect(validateAudioFile(new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'voice.webm', { type: 'audio/webm' }))).toMatch(/10 MiB/);
+    await expect(sendAudio(new File(['svg'], 'voice.svg', { type: 'image/svg+xml' }), { clientMessageId: '33333333-3333-4333-8333-333333333333', body: '🎤 Nota de voz', conversationVersion: 1 }, 'csrf')).rejects.toMatchObject({ code: 'UPLOAD_INVALID' });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

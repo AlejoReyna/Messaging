@@ -7,7 +7,7 @@ export function ThemePicker({ theme, onChange }: { theme: ThemeId; onChange: (th
       <h3 id="theme-title" className="flex items-center gap-2 text-sm font-semibold text-ink">
         <Palette className="h-4 w-4" aria-hidden="true" /> Personalización
       </h3>
-      <p className="mt-1 text-xs leading-relaxed text-muted">11 paletas conocidas. El tema se aplica al momento y se recuerda para tu cuenta en este navegador.</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted">Elige una paleta. El tema se aplica al momento y se recuerda para tu cuenta en este navegador.</p>
       <fieldset className="mt-3 grid grid-cols-2 gap-2.5">
         <legend className="sr-only">Elige el tema del chat</legend>
         {THEMES.map((option) => (

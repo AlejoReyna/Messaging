@@ -7,6 +7,8 @@ import {
   LoginInputSchema,
   MessageSchema,
   MAX_CHAT_VIDEO_BYTES,
+  MAX_CHAT_AUDIO_BYTES,
+  AUDIO_MIME_TYPES,
   VIDEO_MIME_TYPES,
   MessagesPageSchema,
   PinLoginInputSchema,
@@ -65,7 +67,7 @@ export function friendlyErrorMessage(code: string, fallback: string): string {
     case 'UNAUTHENTICATED': return 'Tu sesión expiró. Inicia sesión de nuevo.';
     case 'FORBIDDEN': return 'No tienes permiso para hacer eso.';
     case 'RATE_LIMITED': return 'Demasiados intentos. Espera un momento e inténtalo de nuevo.';
-    case 'UPLOAD_INVALID': return 'Imagen no válida. Usa JPEG, PNG o WebP de hasta 5 MiB.';
+    case 'UPLOAD_INVALID': return fallback || 'El archivo no es válido.';
     case 'MESSAGE_NOT_FOUND': return 'Ese mensaje ya no existe.';
     case 'SERVICE_UNAVAILABLE': return 'El servicio no está disponible. Inténtalo más tarde.';
     default: return fallback || 'Ocurrió un error. Inténtalo de nuevo.';
@@ -320,6 +322,29 @@ export async function sendVideo(file: File, input: SendMessageInput, csrfToken: 
     method: 'POST', credentials: 'include', headers: headers(csrfToken), body: form,
   });
   if (!res.ok) await parseFailure(res, { UPLOAD_INVALID: 'Video no válido. Usa MP4, MOV o WebM de hasta 50 MiB y 3 minutos.' });
+  const data = await res.json() as { message: unknown };
+  return { message: MessageSchema.parse(data.message), repeated: res.status === 200 };
+}
+
+export function validateAudioFile(file: File): string | null {
+  if (!file.size || file.size > MAX_CHAT_AUDIO_BYTES) return 'La nota de voz debe pesar como máximo 10 MiB.';
+  if (!(AUDIO_MIME_TYPES as readonly string[]).includes(file.type.split(';')[0]!)) return 'El formato de audio no es compatible.';
+  return null;
+}
+
+export async function sendAudio(file: File, input: SendMessageInput, csrfToken: string, replyToMessageId?: string): Promise<{ message: Message; repeated: boolean }> {
+  const problem = validateAudioFile(file);
+  if (problem) throw toApiFailure(400, 'UPLOAD_INVALID', problem);
+  const form = new FormData();
+  form.append('clientMessageId', input.clientMessageId);
+  form.append('conversationVersion', String(input.conversationVersion));
+  form.append('body', input.body);
+  if (replyToMessageId) form.append('replyToMessageId', replyToMessageId);
+  form.append('audio', file, 'voice');
+  const res = await fetch(API_ROUTES.sendAudio, {
+    method: 'POST', credentials: 'include', headers: headers(csrfToken), body: form,
+  });
+  if (!res.ok) await parseFailure(res, { UPLOAD_INVALID: 'Audio no válido. Graba una nota de hasta 10 MiB y 3 minutos.' });
   const data = await res.json() as { message: unknown };
   return { message: MessageSchema.parse(data.message), repeated: res.status === 200 };
 }

@@ -1,6 +1,6 @@
 /* Paletas adaptadas de sus proyectos originales; fuentes en docs/THEMES.md. */
 
-:root, [data-theme="github-light"] {
+[data-theme="github-light"] {
   color-scheme: light;
   --color-canvas: #f6f8fa;
   --color-surface: #ffffff;
@@ -218,4 +218,25 @@
   --color-danger-hover: #ff9aaa;
   --color-on-danger: #1a1b26;
   --color-subtle: var(--color-muted);
+}
+
+:root, [data-theme="telegram-dark"] {
+  color-scheme: dark;
+  --color-canvas: #000000;
+  --color-surface: #1c1c1e;
+  --color-surface-muted: #000000;
+  --color-surface-hover: #2c2c2e;
+  --color-line: #363638;
+  --color-ink: #f5f5f7;
+  --color-muted: #a3a3aa;
+  --color-subtle: #a3a3aa;
+  --color-accent: #3b8cff;
+  --color-accent-hover: #67a6ff;
+  --color-accent-soft: #26394e;
+  --color-on-accent: #ffffff;
+  --color-success: #57d995;
+  --color-danger: #ff6965;
+  --color-danger-hover: #ff8581;
+  --color-on-danger: #ffffff;
+  --color-overlay: #000000;
 }

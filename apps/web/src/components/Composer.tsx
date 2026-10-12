@@ -1,24 +1,30 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ImagePlus, Reply, SendHorizontal, Sticker, Video, X } from 'lucide-react';
+import { ImagePlus, Paperclip, Reply, SendHorizontal, Sticker, Video, X } from 'lucide-react';
 import { MAX_MESSAGE_LENGTH, MAX_CHAT_VIDEO_SECONDS } from '@private-chat/contracts';
 import { validateAvatarFile, validateVideoFile } from '../lib/api';
 import type { ChatSticker } from '../lib/stickers';
 import { snippetOf } from '../lib/reply';
 import type { ReplyTarget } from '../hooks/useChat';
 import { StickerPicker } from './StickerPicker';
+import { VoiceRecorder } from './VoiceRecorder';
 
 export function Composer({
-  onSend, onSendPhoto, onSendVideo, onTyping, disabled, placeholder, replyTo, onCancelReply,
+  onSend, onSendPhoto, onSendVideo, onSendAudio, onTyping, disabled, placeholder, replyTo, onCancelReply,
 }: {
   onSend: (body: string, replyTo?: ReplyTarget | null) => Promise<void> | void;
   onSendPhoto?: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void> | void;
   onSendVideo?: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void> | void;
+  onSendAudio?: (file: File, replyTo?: ReplyTarget | null) => Promise<void> | void;
   onTyping: (isTyping: boolean) => void;
   disabled?: boolean;
   placeholder?: string;
   replyTo?: ReplyTarget | null;
   onCancelReply?: () => void;
 }) {
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  const attachmentButton = useRef<HTMLButtonElement>(null);
+  const attachmentMenu = useRef<HTMLDivElement>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [video, setVideo] = useState<File | null>(null);
   const [videoReady, setVideoReady] = useState(false);
@@ -37,14 +43,23 @@ export function Composer({
   const [sticker, setSticker] = useState<ChatSticker | null>(null);
   const [stickerReady, setStickerReady] = useState(false);
 
+  useEffect(() => {
+    if (!attachmentsOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (!attachmentButton.current?.contains(event.target as Node) && !attachmentMenu.current?.contains(event.target as Node)) setAttachmentsOpen(false);
+    };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
+  }, [attachmentsOpen]);
+
   function closeStickers() {
     setStickersOpen(false);
     stickerToggleRef.current?.focus();
   }
 
   useEffect(() => {
-    if (disabled || sending) setStickersOpen(false);
-  }, [disabled, sending]);
+    if (disabled || sending || voiceActive) { setStickersOpen(false); setAttachmentsOpen(false); }
+  }, [disabled, sending, voiceActive]);
 
   useEffect(() => () => {
     if (stopTimer.current) window.clearTimeout(stopTimer.current);
@@ -74,7 +89,7 @@ export function Composer({
   async function submit(e: FormEvent) {
     e.preventDefault();
     const body = value.trim();
-    if ((!body && !photo && !video && !sticker) || sending || disabled || (photo && !photoReady) ||
+    if ((!body && !photo && !video && !sticker) || sending || disabled || voiceActive || (photo && !photoReady) ||
       (video && !videoReady) || (sticker && !stickerReady)) return;
     if (!sticker && body.length > MAX_MESSAGE_LENGTH) return;
     setSending(true);
@@ -106,6 +121,7 @@ export function Composer({
   return (
     <form onSubmit={submit} className="flex flex-col gap-2" aria-label="Enviar mensaje"
       onKeyDown={(event) => {
+        if (event.key === 'Escape' && attachmentsOpen) { event.preventDefault(); event.stopPropagation(); setAttachmentsOpen(false); attachmentButton.current?.focus(); }
         if (event.key === 'Escape' && stickersOpen) { event.preventDefault(); event.stopPropagation(); closeStickers(); }
       }}>
       {replyTo && !disabled && !sending && (
@@ -113,7 +129,7 @@ export function Composer({
           <Reply className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
           <div className="min-w-0 flex-1 border-l-2 border-accent pl-2">
             <p className="truncate text-[14px] font-bold text-accent">{replyTo.author}</p>
-            <p className="truncate text-[15px] text-muted">{snippetOf(replyTo.message.body, replyTo.message.photoUrl, replyTo.message.videoUrl)}</p>
+            <p className="truncate text-[15px] text-muted">{snippetOf(replyTo.message.body, replyTo.message.photoUrl, replyTo.message.videoUrl, replyTo.message.audioUrl)}</p>
           </div>
           <button type="button" onClick={() => { onCancelReply?.(); inputRef.current?.focus(); }}
             aria-label="Cancelar respuesta"
@@ -161,10 +177,12 @@ export function Composer({
         </div>
       )}
       {photoError && <p role="alert" className="text-[15px] text-danger">{photoError}</p>}
-      {/* Barra estilo WhatsApp: píldora de texto con sticker dentro,
-          cámara fuera y botón circular de enviar. Mismos iconos actuales. */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-      <div className="relative min-w-0 flex-1">
+      {/* Compositor de píldora con adjuntos y grabación explícita. */}
+      <div className={`composer-row relative flex items-center gap-1.5 sm:gap-2 ${voiceActive ? 'voice-active' : ''}`} >
+      {(onSendPhoto || onSendVideo) && <button ref={attachmentButton} type="button" disabled={disabled || sending || !!sticker || voiceActive}
+        aria-label="Adjuntar foto o video" aria-expanded={attachmentsOpen} onClick={() => setAttachmentsOpen((open) => !open)}
+        className="composer-attachment grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line bg-surface text-ink disabled:opacity-50"><Paperclip className="h-6 w-6" aria-hidden="true" /></button>}
+      <div className="composer-input relative min-w-0 flex-1">
       <label htmlFor="composer" className="sr-only">Escribe un mensaje</label>
       <input
         ref={inputRef}
@@ -174,10 +192,10 @@ export function Composer({
         enterKeyHint="send"
         maxLength={MAX_MESSAGE_LENGTH + 100}
         value={sticker ? '' : value}
-        disabled={disabled || !!sticker}
+        disabled={disabled || !!sticker || voiceActive}
         onChange={(e) => handleChange(e.target.value)}
         placeholder={sticker ? 'Sticker listo para enviar' : photo || video ? 'Añade un texto…' : placeholder ?? 'Escribe un mensaje…'}
-        className="min-h-[50px] w-full min-w-0 rounded-full border border-line bg-surface-muted py-2.5 pl-5 pr-12 text-[17px] text-ink shadow-sm placeholder:text-muted transition-shadow duration-200 focus:border-accent focus:shadow-md disabled:opacity-60"
+        className="min-h-[50px] w-full min-w-0 rounded-full border border-line bg-surface py-2.5 pl-5 pr-12 text-[17px] text-ink shadow-sm placeholder:text-muted transition-shadow duration-200 focus:border-accent focus:shadow-md disabled:opacity-60"
       />
       <button ref={stickerToggleRef} type="button" disabled={disabled || sending || !!photo || !!video}
         onClick={() => stickersOpen ? closeStickers() : setStickersOpen(true)}
@@ -187,9 +205,10 @@ export function Composer({
         <Sticker className="h-7 w-7" aria-hidden="true" />
       </button>
       </div>
+      <div ref={attachmentMenu} className={`composer-attachments ${attachmentsOpen ? 'is-open' : ''}`}>
       {onSendPhoto && <>
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Elegir foto" className="sr-only" tabIndex={-1}
-          disabled={disabled || sending || !!sticker} onChange={(event) => {
+          disabled={disabled || sending || !!sticker || voiceActive} onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = '';
             if (!file) return;
@@ -198,14 +217,14 @@ export function Composer({
             setPhotoError(problem);
             setPhoto(problem ? null : file);
           }} />
-        <button type="button" disabled={disabled || sending || !!sticker} onClick={() => { setStickersOpen(false); fileRef.current?.click(); }}
+        <button type="button" disabled={disabled || sending || !!sticker || voiceActive} onClick={() => { setStickersOpen(false); setAttachmentsOpen(false); fileRef.current?.click(); }}
           aria-label="Enviar foto" title="Enviar foto" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-hover hover:text-accent active:scale-90 disabled:opacity-50">
           <ImagePlus className="h-7 w-7" aria-hidden="true" />
         </button>
       </>}
       {onSendVideo && <>
         <input ref={videoFileRef} type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
-          aria-label="Elegir video" className="sr-only" tabIndex={-1} disabled={disabled || sending || !!sticker}
+          aria-label="Elegir video" className="sr-only" tabIndex={-1} disabled={disabled || sending || !!sticker || voiceActive}
           onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = '';
@@ -216,13 +235,17 @@ export function Composer({
             setPhotoError(problem);
             setVideo(problem ? null : file);
           }} />
-        <button type="button" disabled={disabled || sending || !!sticker}
-          onClick={() => { setStickersOpen(false); videoFileRef.current?.click(); }} aria-label="Enviar video" title="Enviar video"
+        <button type="button" disabled={disabled || sending || !!sticker || voiceActive}
+          onClick={() => { setStickersOpen(false); setAttachmentsOpen(false); videoFileRef.current?.click(); }} aria-label="Enviar video" title="Enviar video"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-hover hover:text-accent active:scale-90 disabled:opacity-50">
           <Video className="h-7 w-7" aria-hidden="true" />
         </button>
       </>}
-      <button
+      </div>
+      {onSendAudio && !photo && !video && !sticker && !value.trim() && <VoiceRecorder disabled={disabled || sending}
+        onActiveChange={(active) => { setVoiceActive(active); if (active) onTyping(false); }}
+        onSend={async (file) => { await onSendAudio(file, replyTo ?? null); onCancelReply?.(); }} />}
+      {(!onSendAudio || photo || video || sticker || value.trim()) && <button
         type="submit"
         disabled={!canSend}
         aria-label="Enviar mensaje"
@@ -231,7 +254,7 @@ export function Composer({
         } disabled:opacity-50`}
       >
         <SendHorizontal className="h-6 w-6" aria-hidden="true" />
-      </button>
+      </button>}
       </div>
       {value.trim().length > MAX_MESSAGE_LENGTH - 200 && (
         <span aria-live="polite" className="sr-only">Quedan {remaining} caracteres.</span>

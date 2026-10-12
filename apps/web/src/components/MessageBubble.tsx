@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, CheckCheck, ChevronDown, Clock3, Reply, TriangleAlert, Trash2 } from 'lucide-react';
-import { PHOTO_MESSAGE_BODY, VIDEO_MESSAGE_BODY, type Message } from '@private-chat/contracts';
+import { PHOTO_MESSAGE_BODY, VIDEO_MESSAGE_BODY, AUDIO_MESSAGE_BODY, type Message } from '@private-chat/contracts';
 import { MessagePhoto, PendingPhoto } from './MessagePhoto';
 import { MessageVideo, PendingVideo } from './MessageVideo';
+import { MessageAudio, PendingAudio } from './MessageAudio';
 import { formatTime, fullDate } from '../lib/format';
 import { getMessageSticker } from '../lib/stickers';
 import { snippetOf, type ReplySnapshot } from '../lib/reply';
@@ -74,9 +75,9 @@ export function MessageBubble({
   const canDelete = isAdmin || mine;
   const timeLabel = formatTime(message.createdAt);
 
-  const sticker = message.photoUrl || message.videoUrl ? undefined : getMessageSticker(message.body);
-  const hasPhoto = Boolean(message.photoUrl || message.videoUrl);
-  const hasCaption = hasPhoto && message.body !== (message.videoUrl ? VIDEO_MESSAGE_BODY : PHOTO_MESSAGE_BODY);
+  const sticker = message.photoUrl || message.videoUrl || message.audioUrl ? undefined : getMessageSticker(message.body);
+  const hasPhoto = Boolean(message.photoUrl || message.videoUrl || message.audioUrl);
+  const hasCaption = hasPhoto && message.body !== (message.audioUrl ? AUDIO_MESSAGE_BODY : message.videoUrl ? VIDEO_MESSAGE_BODY : PHOTO_MESSAGE_BODY);
   const tickCls = animate ? 'tick-pop items-center gap-0.5 font-medium' : 'inline-flex items-center gap-0.5 font-medium';
 
   function clearLongPress() {
@@ -181,7 +182,7 @@ export function MessageBubble({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
-        className={`relative max-w-[82%] rounded-lg text-[17px] leading-[1.45] shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] sm:max-w-[70%] ${
+        className={`message-bubble relative max-w-[86%] rounded-[20px] text-[16px] leading-[1.45] shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] sm:max-w-[70%] ${
           // pr-10 en burbujas de texto: reserva ~32px del chevron + margen para que
           // la hora no quede debajo del botón en mensajes cortos de una línea.
           sticker ? 'border border-transparent bg-transparent px-0 py-0 shadow-none' : hasPhoto ? `border p-1.5 ${bubbleBg}` : `border py-2 pl-3 pr-10 ${bubbleBg}`
@@ -254,12 +255,12 @@ export function MessageBubble({
 
         {message.replyTo && replyAuthorName && (
           <QuoteBlock author={replyAuthorName} messageId={message.replyTo.messageId}
-            snippet={snippetOf(message.replyTo.body, message.replyTo.photoUrl, message.replyTo.videoUrl)} onQuoteClick={onQuoteClick} />
+            snippet={snippetOf(message.replyTo.body, message.replyTo.photoUrl, message.replyTo.videoUrl, message.replyTo.audioUrl)} onQuoteClick={onQuoteClick} />
         )}
-        {(message.photoUrl || message.videoUrl) && (
+        {(message.photoUrl || message.videoUrl || message.audioUrl) && (
           <div className="relative">
-            {message.videoUrl ? <MessageVideo src={message.videoUrl} /> : <MessagePhoto src={message.photoUrl!} />}
-            {!hasCaption && !message.videoUrl && (
+            {message.audioUrl ? <MessageAudio src={message.audioUrl} duration={message.audioDurationSeconds} /> : message.videoUrl ? <MessageVideo src={message.videoUrl} /> : <MessagePhoto src={message.photoUrl!} />}
+            {!hasCaption && !message.videoUrl && !message.audioUrl && (
               <span className="absolute bottom-2.5 right-2 inline-flex select-none items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[12px] font-normal leading-none text-white">
                 <time dateTime={message.createdAt} title={fullDate(message.createdAt)}>{timeLabel}</time>
                 {mine && (
@@ -287,7 +288,7 @@ export function MessageBubble({
           // En fotos con pie, el bubble es p-1.5 sin reserva: el pr-8 del pie evita que el chevron lo tape.
           <p className={`whitespace-pre-wrap break-words px-0.5${hasPhoto ? ' pr-8' : ''}`} lang="es">{message.body}<MetaInline createdAt={message.createdAt} mine={mine} read={read} animate={animate} /></p>
         )}
-        {message.videoUrl && !hasCaption && <div className="mt-1 flex justify-end pb-1"><MetaInline
+        {(message.videoUrl || message.audioUrl) && !hasCaption && <div className="mt-1 flex justify-end pb-1"><MetaInline
           createdAt={message.createdAt} mine={mine} read={read} animate={animate} /></div>}
       </div>
     </div>
@@ -295,11 +296,12 @@ export function MessageBubble({
 }
 
 export function PendingBubble({
-  body, photo, video, replyTo, failed, error, onRetry, onDiscard, onQuoteClick,
+  body, photo, video, audio, replyTo, failed, error, onRetry, onDiscard, onQuoteClick,
 }: {
   body: string;
   photo?: File;
   video?: File;
+  audio?: File;
   replyTo?: ReplySnapshot;
   failed: boolean;
   error?: string;
@@ -307,19 +309,20 @@ export function PendingBubble({
   onDiscard: () => void;
   onQuoteClick?: (messageId: string) => void;
 }) {
-  const sticker = photo || video ? undefined : getMessageSticker(body);
+  const sticker = photo || video || audio ? undefined : getMessageSticker(body);
   return (
     <div className="flex w-full justify-end">
-      <div className="enter-pop-mine relative max-w-[82%] rounded-lg rounded-tr-none border border-dashed border-line bg-accent-soft/70 px-3 py-2 text-[17px] leading-[1.45] text-ink shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] sm:max-w-[70%]">
+      <div className="enter-pop-mine message-bubble relative max-w-[86%] rounded-[20px] border border-dashed border-line bg-accent-soft/70 px-3 py-2 text-[17px] leading-[1.45] text-ink shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] sm:max-w-[70%]">
         <span aria-hidden="true" className="absolute -right-2 top-0 h-0 w-0 border-b-0 border-l-0 border-r-8 border-t-8 border-r-transparent border-t-accent-soft/70" />
         {replyTo && (
           <QuoteBlock author={replyTo.author} messageId={replyTo.messageId}
-            snippet={snippetOf(replyTo.body, replyTo.photoUrl, replyTo.videoUrl)} onQuoteClick={onQuoteClick} />
+            snippet={snippetOf(replyTo.body, replyTo.photoUrl, replyTo.videoUrl, replyTo.audioUrl)} onQuoteClick={onQuoteClick} />
         )}
+        {audio && <PendingAudio file={audio} />}
         {photo && <PendingPhoto file={photo} />}
         {video && <PendingVideo file={video} />}
         {sticker ? <StickerImage key={sticker.id} sticker={sticker} />
-          : ((!photo && !video) || body !== (video ? VIDEO_MESSAGE_BODY : PHOTO_MESSAGE_BODY)) && <p className="whitespace-pre-wrap break-words px-0.5 opacity-80" lang="es">{body}<span className="ml-2 inline-flex translate-y-[2px] select-none items-center gap-1 whitespace-nowrap align-middle text-[12px] font-normal leading-none text-muted">
+          : ((!photo && !video && !audio) || body !== (audio ? AUDIO_MESSAGE_BODY : video ? VIDEO_MESSAGE_BODY : PHOTO_MESSAGE_BODY)) && <p className="whitespace-pre-wrap break-words px-0.5 opacity-80" lang="es">{body}<span className="ml-2 inline-flex translate-y-[2px] select-none items-center gap-1 whitespace-nowrap align-middle text-[12px] font-normal leading-none text-muted">
             {failed ? (
               <span className="inline-flex items-center gap-1 font-semibold text-danger">
                 <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" /> No enviado
@@ -339,7 +342,7 @@ export function PendingBubble({
               Descartar
             </button>
           </div>
-        ) : (sticker || photo || video) && (
+        ) : (sticker || photo || video || audio) && (
           <div className="mt-0.5 flex items-center justify-end text-[12px] text-muted">
             <span className="inline-flex animate-pulse items-center gap-1">
               <Clock3 className="h-3.5 w-3.5" aria-hidden="true" /> Enviando…

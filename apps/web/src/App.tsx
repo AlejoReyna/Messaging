@@ -10,6 +10,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { AvatarEditor } from './components/AvatarEditor';
 import { useTheme } from './lib/themes';
 import { useFont } from './lib/fonts';
+import { useBackground } from './lib/background';
 
 function Shell() {
   const session = useSession();
@@ -20,6 +21,7 @@ function Shell() {
   // Tema y tipografía guardados de la cuenta; se exponen en el diálogo de ajustes.
   const { theme, chooseTheme } = useTheme(session.user?.id);
   const { font, chooseFont } = useFont(session.user?.id);
+  const { background, saveBackground } = useBackground(session.user?.id);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
@@ -108,6 +110,8 @@ function Shell() {
         me={me}
         partner={chat.partner}
         unread={unread}
+        lastMessage={lastMessage}
+        onOpenSettings={() => setSettingsOpen(true)}
         onOpenConversation={() => document.getElementById('composer')?.focus()}
         onOpenAvatar={() => setAvatarOpen(true)}
         onLogout={() => void session.logout()}
@@ -134,6 +138,7 @@ function Shell() {
         )}
         <ChatPanel
           me={me}
+          background={background}
           partner={chat.partner}
           messages={chat.messages}
           pending={chat.pending}
@@ -153,6 +158,7 @@ function Shell() {
           onSend={chat.send}
           onSendPhoto={chat.sendPhoto}
           onSendVideo={chat.sendVideo}
+          onSendAudio={chat.sendAudio}
           onRetry={chat.retry}
           onDiscardPending={chat.discardPending}
           onTyping={chat.setTyping}
@@ -171,7 +177,7 @@ function Shell() {
       </div>
 
       {settingsOpen && <ProfileDialog me={me} theme={theme} onChooseTheme={chooseTheme} font={font} onChooseFont={chooseFont}
-        avatarOpen={avatarOpen} onOpenAvatar={() => setAvatarOpen(true)} onClose={closeSettings} />}
+        background={background} onSaveBackground={saveBackground} avatarOpen={avatarOpen} onOpenAvatar={() => setAvatarOpen(true)} onClose={closeSettings} />}
       {avatarOpen && <AvatarEditor me={me} csrfToken={session.csrfToken}
         onSaved={session.setUser} onClose={closeAvatar} />}
 

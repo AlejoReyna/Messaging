@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Eraser, Github, Settings, Volume2, VolumeX, WifiOff } from 'lucide-react';
+import { ArrowLeft, Eraser, Settings, Volume2, VolumeX, WifiOff } from 'lucide-react';
 import type { Message, PublicUser } from '@private-chat/contracts';
+import { DEFAULT_BACKGROUND, useBackgroundImage, type ChatBackground } from '../lib/background';
 import type { PendingMessage } from '../lib/store';
 import type { ReplyTarget } from '../hooks/useChat';
 import { playHalo, useSoundEnabled } from '../lib/sound';
@@ -16,12 +17,13 @@ function dayKey(iso: string): string {
 }
 
 export function ChatPanel({
-  me, partner, messages, pending, loading, loadingMore, hasMore, loadError,
+  me, background = DEFAULT_BACKGROUND, partner, messages, pending, loading, loadingMore, hasMore, loadError,
   connected, partnerTyping, partnerOnline, readByPartner,
   notice, showSidebarToggle, onOpenSettings, onLoadMore, onReload,
-  onSend, onSendPhoto, onSendVideo, onRetry, onDiscardPending, onTyping, onDeleteMessage, onClear, isAdmin, clearArmed,
+  onSend, onSendPhoto, onSendVideo, onSendAudio, onRetry, onDiscardPending, onTyping, onDeleteMessage, onClear, isAdmin, clearArmed,
 }: {
   me: PublicUser;
+  background?: ChatBackground;
   partner: PublicUser | null;
   messages: Message[];
   pending: PendingMessage[];
@@ -41,6 +43,7 @@ export function ChatPanel({
   onSend: (body: string, replyTo?: ReplyTarget | null) => Promise<void>;
   onSendPhoto?: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void>;
   onSendVideo?: (file: File, caption: string, replyTo?: ReplyTarget | null) => Promise<void>;
+  onSendAudio?: (file: File, replyTo?: ReplyTarget | null) => Promise<void>;
   onRetry: (id: string) => Promise<void>;
   onDiscardPending: (id: string) => void;
   onTyping: (t: boolean) => void;
@@ -49,6 +52,7 @@ export function ChatPanel({
   isAdmin: boolean;
   clearArmed: boolean;
 }) {
+  const backgroundUrl = useBackgroundImage(background.image);
   const [partnerAvatarOpen, setPartnerAvatarOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -156,10 +160,12 @@ export function ChatPanel({
   return (
     <section
       aria-label="Conversación"
-      className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-surface-muted"
+      data-background={background.preset}
+      className="chat-panel relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-surface-muted"
     >
+      {backgroundUrl && <img src={backgroundUrl} alt="" aria-hidden="true" className="chat-background-image pointer-events-none absolute inset-0 h-full w-full object-cover" />}
       {/* Cabecera con avatar del contacto */}
-      <header className="chat-header flex shrink-0 items-center gap-3 border-b border-line/70 bg-surface px-4 pb-3 pt-4 text-ink sm:px-6">
+      <header className="chat-header relative flex shrink-0 items-center gap-3 px-4 pb-4 pt-4 text-ink sm:px-6">
         {showSidebarToggle && (
           <span className="grid h-10 w-10 place-items-center rounded-full bg-surface-muted text-muted" aria-hidden="true">
             <ArrowLeft className="h-5 w-5" />
@@ -197,7 +203,7 @@ export function ChatPanel({
             <p className="text-xs text-muted">Cargando contacto…</p>
           </div>
         )}
-        <div className="flex items-center gap-2">
+        <div className="chat-header-actions flex items-center gap-1">
           <button
             type="button"
             onClick={() => {
@@ -213,7 +219,7 @@ export function ChatPanel({
             {soundOn ? <Volume2 className="h-5 w-5" aria-hidden="true" /> : <VolumeX className="h-5 w-5" aria-hidden="true" />}
           </button>
           {!connected && (
-            <span role="status" className="enter-down inline-flex items-center gap-1 rounded-full bg-surface-muted px-3 py-1.5 text-xs font-semibold text-muted">
+            <span role="status" className="connection-status enter-down inline-flex items-center gap-1 rounded-full bg-surface-muted px-3 py-1.5 text-xs font-semibold text-muted">
               <WifiOff className="h-3.5 w-3.5" aria-hidden="true" /> Reconectando
             </span>
           )}
@@ -236,16 +242,7 @@ export function ChatPanel({
           >
             <Settings className="h-5 w-5" aria-hidden="true" />
           </button>
-          <a
-            href="https://github.com/AlejoReyna/Messaging"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Abrir repositorio en GitHub"
-            title="GitHub"
-            className="inline-grid min-h-[44px] min-w-[44px] place-items-center rounded-full text-muted transition-all duration-200 hover:scale-105 hover:bg-surface-hover hover:text-ink active:scale-95 md:hidden"
-          >
-            <Github className="h-5 w-5" aria-hidden="true" />
-          </a>
+
         </div>
       </header>
 
@@ -266,7 +263,7 @@ export function ChatPanel({
         aria-label="Mensajes"
         aria-live="off"
         tabIndex={0}
-        className="chat-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto px-4 py-4 sm:px-6"
+        className="chat-scroll relative min-h-0 flex-1 space-y-2.5 overflow-y-auto px-4 py-4 sm:px-6"
       >
         {loading ? (
           <div className="space-y-2.5" aria-label="Cargando mensajes">
@@ -329,7 +326,7 @@ export function ChatPanel({
                 <div key={m.id} id={`msg-${m.id}`}
                   className={highlightId === m.id ? 'reply-flash rounded-3xl' : undefined}>
                   {showDay && (
-                    <p className="enter-up mb-2 mt-3 text-center text-xs font-medium text-muted">
+                    <p className="chat-day enter-up mb-2 mt-3 text-center text-xs font-medium text-muted">
                       <time dateTime={m.createdAt}>{formatDay(m.createdAt)}</time>
                     </p>
                   )}
@@ -353,6 +350,7 @@ export function ChatPanel({
                 body={p.body}
                 photo={p.photo}
                 video={p.video}
+                audio={p.audio}
                 replyTo={p.replyTo}
                 failed={p.status === 'failed'}
                 error={p.error}
@@ -376,8 +374,8 @@ export function ChatPanel({
       </div>
 
       {/* Entrada */}
-      <footer className="chat-footer shrink-0 border-t border-line/70 bg-surface px-3 pb-3 pt-3 sm:px-6 sm:pb-5">
-        <Composer onSendPhoto={onSendPhoto} onSendVideo={onSendVideo} onSend={onSend} onTyping={onTyping}
+      <footer className="chat-footer relative shrink-0 px-3 pb-3 pt-3 sm:px-6 sm:pb-5">
+        <Composer onSendPhoto={onSendPhoto} onSendVideo={onSendVideo} onSendAudio={onSendAudio} onSend={onSend} onTyping={onTyping}
           disabled={loading || !!loadError} replyTo={replyTo} onCancelReply={() => setReplyTo(null)} />
       </footer>
       {partnerAvatarOpen && partner && <AvatarPreview user={partner} onClose={() => setPartnerAvatarOpen(false)} />}

@@ -11,13 +11,17 @@ import { ThemePicker } from './ThemePicker';
 import { FontPicker } from './FontPicker';
 import type { ThemeId } from '../lib/themes';
 import type { FontId } from '../lib/fonts';
+import { BackgroundPicker } from './BackgroundPicker';
+import type { ChatBackground } from '../lib/background';
 
-export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, avatarOpen, onOpenAvatar, onClose }: {
+export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, background, onSaveBackground, avatarOpen, onOpenAvatar, onClose }: {
   me: PublicUser;
   theme: ThemeId;
   onChooseTheme: (theme: ThemeId) => void;
   font: FontId;
   onChooseFont: (font: FontId) => void;
+  background?: ChatBackground;
+  onSaveBackground?: (background: ChatBackground) => Promise<void>;
   avatarOpen: boolean;
   onOpenAvatar: () => void;
   onClose: () => void;
@@ -81,7 +85,7 @@ export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, av
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/50 p-4"
+    <div className="settings-overlay fixed inset-0 z-50 grid place-items-center bg-overlay/50 p-4"
       role="presentation" aria-hidden={avatarOpen || undefined} inert={avatarOpen || undefined}
       onClick={() => { if (!avatarOpen) onClose(); }}>
       <div
@@ -90,18 +94,25 @@ export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, av
         aria-modal="true"
         aria-labelledby="profile-title"
         onClick={(e) => e.stopPropagation()}
-        className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-line/70 bg-surface p-6 shadow-dialog"
+        className="profile-panel relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-line/70 bg-surface p-6 shadow-dialog"
       >
-        <div className="flex items-center gap-3 text-left">
-          <div className="flex min-w-0 flex-row items-center gap-3">
+        <div className="settings-toolbar sticky z-20 flex items-center justify-between gap-3 bg-canvas py-2">
+          <h2 id="profile-title" className="text-lg font-bold">Ajustes</h2>
+          <button type="button" onClick={onClose} aria-label="Cerrar ajustes"
+            className="grid max-h-[44px] min-h-[44px] min-w-[44px] place-items-center rounded-full bg-surface-muted text-ink transition-all duration-200 hover:scale-105 hover:bg-surface-hover active:scale-95">
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="profile-heading flex items-center gap-3 text-left">
+          <div className="profile-identity flex min-w-0 flex-row items-center gap-3">
             <button type="button" onClick={onOpenAvatar} aria-label={`Cambiar imagen de ${me.displayName}`}
               title="Toca para cambiar tu foto"
               className="shrink-0 rounded-full transition-all duration-200 hover:scale-105 hover:opacity-80 active:scale-95">
-              <AvatarView user={me} size={56} />
+              <AvatarView user={me} size={96} />
             </button>
             <div className="min-w-0">
-              <p className="text-xs text-muted">Mi perfil</p>
-              <h2 id="profile-title" className="text-lg font-semibold text-ink">
+              <p className="text-xs text-accent">Ajustes</p>
+              <h2 className="text-lg font-semibold text-ink">
                 <button type="button" aria-label={`Editar nombre de ${me.displayName}`}
                   className="group flex max-w-full items-center gap-2 rounded-lg text-left"
                   onClick={() => { nameRef.current?.focus(); nameRef.current?.select(); }}>
@@ -114,10 +125,7 @@ export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, av
               <p className="text-xs text-muted">{me.role === 'admin' ? 'Administrador · puede borrar cualquier mensaje' : 'Miembro · puede borrar sus mensajes'}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Cerrar ajustes"
-            className="grid max-h-[44px] min-h-[44px] min-w-[44px] place-items-center rounded-full bg-surface-muted text-ink transition-all duration-200 hover:scale-105 hover:bg-surface-hover active:scale-95 ml-auto">
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
+
         </div>
 
         {msg && (
@@ -127,7 +135,7 @@ export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, av
           </p>
         )}
 
-        <form onSubmit={saveProfile} className="mt-4 space-y-3">
+        <form onSubmit={saveProfile} className="settings-card mt-6 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="profile-username" className="mb-1 block text-left text-xs font-bold text-ink">Usuario</label>
@@ -151,6 +159,8 @@ export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, av
         <div className="mt-4">
           <PinChangeForm />
         </div>
+
+        {background && onSaveBackground && <BackgroundPicker background={background} onSave={onSaveBackground} />}
 
         <ThemePicker theme={theme} onChange={onChooseTheme} />
 

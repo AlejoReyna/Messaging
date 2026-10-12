@@ -12,6 +12,7 @@ const avatarSizes = {
   48: 'h-12 w-12 text-base',
   52: 'h-[52px] w-[52px] text-lg',
   56: 'h-14 w-14 text-lg',
+  96: 'h-24 w-24 text-3xl',
 } as const;
 
 export function AvatarView({
