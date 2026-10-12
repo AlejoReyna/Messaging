@@ -23,7 +23,7 @@ export function ThemePicker({ theme, onChange }: { theme: ThemeId; onChange: (th
             <input type="radio" name="chat-theme" value={option.id} checked={theme === option.id}
               onChange={() => onChange(option.id)} className="peer sr-only" />
             <span className="block overflow-hidden rounded-2xl border border-line bg-surface p-2.5 text-ink peer-checked:border-accent peer-checked:ring-2 peer-checked:ring-accent peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-accent">
-              <span aria-hidden="true" className="flex h-14 flex-col justify-center gap-1.5 rounded-xl bg-surface-muted px-3">
+              <span aria-hidden="true" className="theme-preview flex h-14 flex-col justify-center gap-1.5 rounded-xl bg-surface-muted px-3">
                 <span className="h-2.5 w-3/5 rounded-full bg-surface" />
                 <span className="h-2.5 w-1/2 self-end rounded-full bg-accent-soft" />
               </span>

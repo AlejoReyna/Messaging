@@ -284,3 +284,27 @@
   --theme-bubble: #7c3aed;
   --theme-bubble-ink: #ffffff;
 }
+
+/* Pinkie Pie: rosas, lavanda y menta pastel, con texto de alto contraste. */
+[data-theme="pinkie-pie"] {
+  color-scheme: light;
+  --color-canvas: #fff1f8;
+  --color-surface: #fffafd;
+  --color-surface-muted: #ffe2ef;
+  --color-surface-hover: #fbd1e6;
+  --color-line: #e7aac8;
+  --color-ink: #61344f;
+  --color-muted: #8d4d6c;
+  --color-subtle: #8d4d6c;
+  --color-accent: #b92376;
+  --color-accent-hover: #98125e;
+  --color-accent-soft: #f7b1d4;
+  --color-on-accent: #ffffff;
+  --color-success: #267269;
+  --color-danger: #9c2855;
+  --color-danger-hover: #7f1e44;
+  --color-on-danger: #ffffff;
+  --color-overlay: #643252;
+  --theme-bubble: #f7b1d4;
+  --theme-bubble-ink: #61344f;
+}

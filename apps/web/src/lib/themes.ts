@@ -5,10 +5,11 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 export const THEMES = [
   { id: 'original', name: 'Blanco original', mode: 'Claro' },
   { id: 'night', name: 'Nocturno · morado', mode: 'Oscuro' },
+  { id: 'pinkie-pie', name: 'Pinkie Pie', mode: 'Claro' },
   { id: 'telegram-dark', name: 'Telegram Dark', mode: 'Oscuro' },
   { id: 'github-light', name: 'GitHub Light', mode: 'Claro' },
-  { id: 'cocoa', name: 'Cocoa', mode: 'Claro' },
   { id: 'github-dark', name: 'GitHub Dark', mode: 'Oscuro' },
+  { id: 'cocoa', name: 'Cocoa', mode: 'Claro' },
   { id: 'catppuccin-latte', name: 'Catppuccin Latte', mode: 'Claro' },
   { id: 'catppuccin-mocha', name: 'Catppuccin Mocha', mode: 'Oscuro' },
   { id: 'dracula', name: 'Dracula', mode: 'Oscuro' },
@@ -32,8 +33,8 @@ export function themeForMode(theme: ThemeId, dark: boolean): ThemeId {
   const pairs: Partial<Record<ThemeId, ThemeId>> = {
     original: 'night', night: 'original',
     'github-light': 'github-dark', 'github-dark': 'github-light',
-    'catppuccin-latte': 'catppuccin-mocha', 'catppuccin-mocha': 'catppuccin-latte',
     'solarized-light': 'solarized-dark', 'solarized-dark': 'solarized-light',
+    'catppuccin-latte': 'catppuccin-mocha', 'catppuccin-mocha': 'catppuccin-latte',
   };
   return pairs[theme] ?? (dark ? 'night' : 'original');
 }

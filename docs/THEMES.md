@@ -1,6 +1,6 @@
 # Temas y personalización
 
-Catorce opciones de apariencia para el chat. Se conservan sus colores de fondo y acento, asignándolos a superficies, texto, burbujas y acciones. Blanco original vuelve a ser la opción inicial desde el 2026-10-12; Nocturno añade globos morados. Las doce paletas anteriores se conservan.
+Quince opciones de apariencia para el chat. Se conservan sus colores de fondo y acento, asignándolos a superficies, texto, burbujas y acciones. Blanco original vuelve a ser la opción inicial desde el 2026-10-12; Nocturno añade globos morados. Las doce paletas anteriores se conservan y se añade Pinkie Pie, una combinación propia de rosas, lavanda y menta pastel.
 
 | Temas | Fuente original |
 | --- | --- |
@@ -14,15 +14,15 @@ Catorce opciones de apariencia para el chat. Se conservan sus colores de fondo y
 
 Los colores funcionales de lectura, peligro y texto secundario se ajustan cuando la paleta original no alcanza 4.5:1 en las superficies del chat. No son paquetes oficiales de estas marcas ni cambios en la identidad de la app.
 
-`apps/web/src/themes.css` contiene Blanco original, Nocturno y las doce paletas previas mediante variables CSS y selectores `data-theme`. Blanco original es la opción inicial para ambas cuentas. La nueva clave `private-chat:theme:v2:<userId>` vuelve al blanco una vez y recuerda elecciones posteriores. El interruptor nocturno alterna pares de paletas claros/oscuros cuando existen. No requiere fuentes externas ni dependencias nuevas. Los componentes usan colores semánticos, incluidos texto de botones y diálogos de peligro en temas oscuros.
+`apps/web/src/themes.css` contiene Blanco original, Nocturno, Pinkie Pie y las doce paletas previas mediante variables CSS y selectores `data-theme`. Blanco original es la opción inicial para ambas cuentas. La nueva clave `private-chat:theme:v2:<userId>` vuelve al blanco una vez y recuerda elecciones posteriores. El interruptor nocturno alterna pares de paletas claros/oscuros cuando existen. No requiere fuentes externas ni dependencias nuevas. Los componentes usan colores semánticos, incluidos texto de botones y diálogos de peligro en temas oscuros.
 
-La preferencia usa la clave `private-chat:theme:<userId>` en localStorage y sólo almacena el identificador del tema. No contiene credenciales, tokens, nombres, fotos ni mensajes. Es local a la cuenta y al navegador: no se sincroniza entre dispositivos. Si el almacenamiento está bloqueado, la selección funciona durante la sesión; si el valor guardado no existe, se usa GitHub Light.
+La preferencia usa la clave `private-chat:theme:v2:<userId>` en localStorage y sólo almacena el identificador del tema. No contiene credenciales, tokens, nombres, fotos ni mensajes. Es local a la cuenta y al navegador: no se sincroniza entre dispositivos. Si el almacenamiento está bloqueado, la selección funciona durante la sesión; si el valor guardado no existe, se usa Blanco original.
 
 El nombre y el avatar siguen guardándose por las rutas existentes del contrato, con cookies y CSRF. Los nombres Alexis (admin) y Marthiel (member) corresponden a las cuentas de vista previa QA; no se inventan ni modifican cuentas de producción. El bootstrap de preview conserva las posteriores ediciones del nombre.
 
 ## Tipografías (Ajustes › Tipografía)
 
-5 opciones; Inter es ahora la predeterminada de toda la interfaz; Patrick Hand sigue disponible. Inter, Nunito y Noto Serif viajan autohospedadas en `apps/web/src/assets/fonts/` (woff2 latin + avisos OFL), sin peticiones externas ni cambios de DTO: la preferencia usa la clave `private-chat:font:<userId>` en localStorage, por cuenta y navegador, igual que el tema. SF Mono Light no se distribuye (propietaria de Apple): si está instalada en el dispositivo se usa en peso ligero, y en el resto cae a la monoespaciada del sistema (`ui-monospace`).
+5 opciones; Nunito es ahora la predeterminada de toda la interfaz; Patrick Hand sigue disponible. Inter, Nunito y Noto Serif viajan autohospedadas en `apps/web/src/assets/fonts/` (woff2 latin + avisos OFL), sin peticiones externas ni cambios de DTO: la preferencia usa la clave `private-chat:font:<userId>` en localStorage, por cuenta y navegador, igual que el tema. SF Mono Light no se distribuye (propietaria de Apple): si está instalada en el dispositivo se usa en peso ligero, y en el resto cae a la monoespaciada del sistema (`ui-monospace`).
 
 La foto seleccionada usa una URL blob local, revocada al reemplazar la selección o cerrar la vista. Guardar queda deshabilitado hasta que el navegador decodifique la imagen. Cancelar no sube ni guarda archivos. Un error del servidor conserva la selección para permitir reintentar. La CSP existente admite imágenes blob y sigue prohibiendo scripts y estilos inline.
 
@@ -36,3 +36,6 @@ HTML y manifest arrancan con `#ffffff`, superficie del tema Blanco original. Se 
 ## Color de los globos y ajustes a pantalla completa
 
 `useBubbleColor` guarda por cuenta `theme` o un color hexadecimal en `private-chat:bubble:<userId>`. Sólo afecta los mensajes propios y sus pendientes; las fuentes y los temas siguen siendo independientes. El texto se elige entre blanco/negro mediante luminancia relativa para maximizar contraste. Volver a Según el tema elimina las variables CSS personalizadas; Nocturno usa morado por defecto. Ajustes tiene dimensiones del viewport y barra superior fija con Cerrar; Escape también lo cierra.
+
+
+RGB admite canales enteros de 0 a 255 y sincroniza el selector de color, la vista previa y la preferencia guardada. Valores vacíos o fuera de rango no se publican. El botón de fuego abre una confirmación centrada con desenfoque del fondo y entrada desde abajo; la animación respeta movimiento reducido. La superficie usa la paleta activa y Aceptar usa el color personalizado de globos si existe. El foco queda dentro del popup y vuelve al botón al cerrar.

@@ -12,24 +12,38 @@ export function ConfirmDialog({
   tone?: 'danger' | 'default';
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    previousFocus.current = document.activeElement as HTMLElement | null;
     cancelRef.current?.focus();
+    return () => previousFocus.current?.focus();
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape' && !busy) onCancel();
+      if (e.key !== 'Tab') return;
+      const buttons = panelRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
+      const first = buttons?.[0];
+      const last = buttons?.[buttons.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel]);
+  }, [onCancel, busy]);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/50 p-4" role="presentation" onClick={onCancel}>
+    <div className="confirm-overlay fixed inset-0 z-50 grid place-items-center bg-overlay/50 p-4" role="presentation" onClick={() => { if (!busy) onCancel(); }}>
       <div
+        ref={panelRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-body"
-        className="w-full max-w-sm rounded-3xl border border-line/70 bg-surface p-6 shadow-dialog"
+        className="confirm-panel w-full max-w-sm rounded-3xl border border-line/70 bg-surface p-6 shadow-dialog"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="confirm-title" className="text-lg font-bold text-ink">{title}</h2>
@@ -39,7 +53,8 @@ export function ConfirmDialog({
             ref={cancelRef}
             type="button"
             onClick={onCancel}
-            className="min-h-[44px] flex-1 rounded-2xl bg-surface-muted px-4 text-sm font-semibold text-ink hover:bg-surface-hover"
+            disabled={busy}
+            className="min-h-[44px] flex-1 rounded-2xl bg-surface-muted px-4 text-sm font-semibold text-ink hover:bg-surface-hover disabled:opacity-60"
           >
             Cancelar
           </button>
@@ -48,7 +63,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={busy}
             className={`min-h-[44px] flex-1 rounded-2xl px-4 text-sm font-semibold disabled:opacity-60 ${
-              tone === 'danger' ? 'bg-danger text-on-danger hover:bg-danger-hover' : 'bg-accent text-on-accent hover:bg-accent-hover'
+              tone === 'danger' ? 'bg-danger text-on-danger hover:bg-danger-hover' : 'confirm-accept bg-accent text-on-accent hover:brightness-110'
             }`}
           >
             {busy ? 'Procesando…' : confirmLabel}

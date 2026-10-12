@@ -14,6 +14,17 @@ export function isBubbleColor(value: string | null): value is string {
   return value === 'theme' || /^#[0-9a-f]{6}$/i.test(value ?? '');
 }
 
+export function rgbToHex(red: number, green: number, blue: number): string | null {
+  const channels = [red, green, blue];
+  if (channels.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) return null;
+  return `#${channels.map((value) => value.toString(16).padStart(2, '0')).join('')}`;
+}
+
+export function hexToRgb(color: string): [number, number, number] {
+  const hex = color === 'theme' ? '#7c3aed' : color;
+  return [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16)) as [number, number, number];
+}
+
 /** Elegir el texto con mayor contraste frente al color del globo. */
 export function bubbleTextColor(color: string) {
   const channels = [1, 3, 5].map((offset) => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Eraser, Settings, Volume2, VolumeX, WifiOff } from 'lucide-react';
+import { ArrowLeft, Flame, Settings, Volume2, VolumeX, WifiOff } from 'lucide-react';
 import type { Message, PublicUser } from '@private-chat/contracts';
 import { DEFAULT_BACKGROUND, useBackgroundImage, type ChatBackground } from '../lib/background';
 import type { PendingMessage } from '../lib/store';
@@ -231,7 +231,7 @@ export function ChatPanel({
               title="Vaciar conversación (administrador)"
               className="inline-grid min-h-[44px] min-w-[44px] place-items-center rounded-full text-muted transition-all duration-200 hover:scale-105 hover:bg-surface-hover hover:text-ink active:scale-95"
             >
-              <Eraser className="h-5 w-5" aria-hidden="true" />
+              <Flame className="h-5 w-5" aria-hidden="true" />
             </button>
           )}
           <button

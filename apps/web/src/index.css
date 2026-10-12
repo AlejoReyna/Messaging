@@ -81,7 +81,7 @@
   --color-overlay: #202420;
   --shadow-panel: 0 8px 30px rgb(32 36 32 / 0.04);
   --shadow-dialog: 0 16px 48px rgb(32 36 32 / 0.12);
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 html, body {
@@ -98,10 +98,10 @@ html, body {
 html[data-font="patrick-hand"] {
   --font-sans: "Patrick Hand", "Segoe Print", "Bradley Hand", cursive;
 }
-html[data-font="inter"], html:not([data-font]) {
+html[data-font="inter"] {
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-html[data-font="nunito"] {
+html[data-font="nunito"], html:not([data-font]) {
   --font-sans: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 html[data-font="noto-serif"] {
@@ -328,4 +328,27 @@ body {
   .connection-status { position: absolute; right: 0.75rem; top: calc(100% + 6px); z-index: 10; border: 1px solid var(--color-line); }
   .chat-footer { padding-left: 0.75rem; padding-right: 0.75rem; }
   .voice-panel .flex { gap: 0.5rem; }
+}
+
+[data-theme="pinkie-pie"] .chat-panel[data-background="plain"],
+[data-theme="pinkie-pie"] .theme-preview {
+  background: linear-gradient(135deg, #fff1f8 0%, #f2ecff 58%, #e5f8f5 100%);
+}
+.confirm-overlay {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: confirm-backdrop-in 180ms var(--ease-chat) both;
+}
+.confirm-panel { animation: confirm-rise-in 280ms var(--ease-chat) both; }
+.confirm-accept {
+  background: var(--bubble-custom, var(--theme-bubble, var(--color-accent)));
+  color: var(--bubble-custom-ink, var(--theme-bubble-ink, var(--color-on-accent)));
+}
+@keyframes confirm-rise-in {
+  from { opacity: 0; transform: translateY(40px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes confirm-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

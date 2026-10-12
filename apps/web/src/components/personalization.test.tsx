@@ -6,8 +6,9 @@ import { AvatarPreview } from './AvatarPreview';
 import { ThemePicker } from './ThemePicker';
 import { FontPicker } from './FontPicker';
 import { ProfileDialog } from './ProfileDialog';
+import { BubbleColorPicker } from './BubbleColorPicker';
 import { DEFAULT_THEME, THEMES, themeForMode, useTheme } from '../lib/themes';
-import { bubbleTextColor, useBubbleColor } from '../lib/bubbles';
+import { bubbleTextColor, rgbToHex, useBubbleColor } from '../lib/bubbles';
 import { DEFAULT_FONT, FONTS, useFont } from '../lib/fonts';
 
 const me: PublicUser = {
@@ -124,6 +125,41 @@ describe('vista previa del avatar', () => {
 });
 
 describe('personalización por cuenta', () => {
+  it('Nunito es la fuente inicial y siguen disponibles GitHub, Solarized y Pinkie Pie', () => {
+    expect(renderHook(() => useFont('new-account')).result.current.font).toBe('nunito');
+    expect(THEMES.map((theme) => theme.id)).toEqual(expect.arrayContaining([
+      'github-light', 'github-dark', 'solarized-light', 'solarized-dark', 'pinkie-pie', 'gruvbox',
+    ]));
+    expect(themeForMode('github-light', true)).toBe('github-dark');
+    expect(themeForMode('solarized-dark', false)).toBe('solarized-light');
+  });
+
+  it('RGB aplica y recuerda el color sin aceptar canales vacíos, fraccionarios o fuera de 0–255', () => {
+    function Picker() {
+      const { bubbleColor, chooseBubbleColor } = useBubbleColor('rgb-account');
+      return <BubbleColorPicker color={bubbleColor} onChange={chooseBubbleColor} />;
+    }
+    render(<Picker />);
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Rojo (R)' }), { target: { value: '255' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Verde (G)' }), { target: { value: '128' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Azul (B)' }), { target: { value: '0' } });
+    expect(window.localStorage.getItem('private-chat:bubble:rgb-account')).toBe('#ff8000');
+    expect(document.documentElement.style.getPropertyValue('--bubble-custom')).toBe('#ff8000');
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Verde (G)' }), { target: { value: '256' } });
+    expect(window.localStorage.getItem('private-chat:bubble:rgb-account')).toBe('#ff8000');
+    fireEvent.blur(screen.getByRole('spinbutton', { name: 'Verde (G)' }));
+    expect(screen.getByRole('spinbutton', { name: 'Verde (G)' })).toHaveValue(128);
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Rojo (R)' }), { target: { value: '' } });
+    expect(window.localStorage.getItem('private-chat:bubble:rgb-account')).toBe('#ff8000');
+    fireEvent.change(screen.getByLabelText('Color personalizado'), { target: { value: '#010203' } });
+    expect(screen.getByRole('spinbutton', { name: 'Rojo (R)' })).toHaveValue(1);
+    expect(screen.getByRole('spinbutton', { name: 'Verde (G)' })).toHaveValue(2);
+    expect(screen.getByRole('spinbutton', { name: 'Azul (B)' })).toHaveValue(3);
+    expect(rgbToHex(-1, 0, 0)).toBeNull();
+    expect(rgbToHex(1.5, 0, 0)).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('vuelve al blanco original y permite alternar modo nocturno sin perder la fuente guardada', () => {
     window.localStorage.setItem('private-chat:theme:account-one', 'telegram-dark');
     window.localStorage.setItem('private-chat:font:account-one', 'nunito');
@@ -140,7 +176,7 @@ describe('personalización por cuenta', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Modo nocturno' }));
     expect(onChange).toHaveBeenLastCalledWith('original');
     expect(themeForMode('catppuccin-latte', true)).toBe('catppuccin-mocha');
-    expect(themeForMode('solarized-dark', false)).toBe('solarized-light');
+    expect(themeForMode('solarized-light', true)).toBe('solarized-dark');
   });
 
   it('recuerda colores personalizados por cuenta, rechaza valores inválidos y restaura el color del tema', () => {
@@ -179,7 +215,7 @@ describe('personalización por cuenta', () => {
   });
 
   it('el lápiz enfoca el nombre y guardar modifica únicamente el perfil propio con CSRF', async () => {
-    render(<ProfileDialog me={me} theme="github-light" onChooseTheme={vi.fn()} font="patrick-hand" onChooseFont={vi.fn()} avatarOpen={false}
+    render(<ProfileDialog me={me} theme="original" onChooseTheme={vi.fn()} font="patrick-hand" onChooseFont={vi.fn()} avatarOpen={false}
       onOpenAvatar={vi.fn()} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Editar nombre de Marthiel' }));
     const name = screen.getByRole('textbox', { name: 'Nombre visible' });
@@ -196,7 +232,7 @@ describe('personalización por cuenta', () => {
   });
 
   it('el diálogo de ajustes expone los selectores de tema y fuente', () => {
-    render(<ProfileDialog me={me} theme="github-light" onChooseTheme={vi.fn()} font="patrick-hand" onChooseFont={vi.fn()} avatarOpen={false}
+    render(<ProfileDialog me={me} theme="original" onChooseTheme={vi.fn()} font="patrick-hand" onChooseFont={vi.fn()} avatarOpen={false}
       onOpenAvatar={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByRole('group', { name: 'Elige el tema del chat' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Elige la fuente del chat' })).toBeInTheDocument();
@@ -205,7 +241,7 @@ describe('personalización por cuenta', () => {
 
   it('muestra todos los temas seleccionables del catálogo', () => {
     const onChange = vi.fn();
-    render(<ThemePicker theme="github-light" onChange={onChange} />);
+    render(<ThemePicker theme="original" onChange={onChange} />);
     expect(screen.getAllByRole('radio')).toHaveLength(THEMES.length);
     fireEvent.click(screen.getByRole('radio', { name: /Dracula/ }));
     expect(onChange).toHaveBeenCalledWith('dracula');

@@ -197,3 +197,12 @@ La QA del principal detectó que Vite inlineaba el SVG pequeño como `data:image
 - Ajustes a pantalla completa en móvil y escritorio, Cerrar fijo arriba, Escape y foco contenido.
 - Copias de los dos componentes con cambios locales anteriores en `.data/appearance-before-original/`, fuera de Git.
 - Validación: build frontend y 102 pruebas frontend; QA en Chromium a 1440×900 y 390×844 con datos sintéticos: modo nocturno, colores, cambio de tema/fuente, persistencia tras recargar, dimensiones fullscreen, cierre por botón/Escape y ausencia de overflow horizontal. Capturas en `.data/qa/original-appearance/`. Publicación mediante CI/CD.
+
+
+## RGB, Nunito, Pinkie Pie y confirmación de vaciado — 2026-10-12
+
+- RGB 0–255 sincronizado con selector, preview y almacenamiento por cuenta; rechazo de valores inválidos.
+- Nunito como predeterminada; conserva elecciones explícitas y las otras cuatro fuentes.
+- Pinkie Pie: rosas/lavanda/menta pastel. Se conservan TODOS los temas previos, incluidos GitHub Light/Dark, Solarized Light/Dark y Gruvbox Dark.
+- Fuego para vaciar; popup centrado «¿Estás seguro?» y «Esto borrará toda la conversación.», Aceptar/Cancelar, entrada desde abajo, backdrop blur y colores activos. Foco contenido/restaurado, Escape y cancelar sin borrar, controles bloqueados durante la operación.
+- Validación: build frontend, 107 pruebas; Chromium 1440×900 y 390×844 con datos sintéticos comprobó RGB, fuente inicial, temas, icono, texto, centrado, blur, animación y cancelación sin DELETE. Capturas en `.data/qa/rgb-pinkie-confirmation/`. Publicación por CI/CD.

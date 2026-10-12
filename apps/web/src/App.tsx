@@ -194,9 +194,10 @@ function Shell() {
       )}
       {clearOpen && (
         <ConfirmDialog
-          title="Vaciar conversación"
-          body="Se borrará todo el historial para ambos. Los textos pendientes de esta pantalla no se reenviarán. Esta acción no se puede deshacer."
-          confirmLabel="Vaciar todo"
+          title="¿Estás seguro?"
+          body="Esto borrará toda la conversación."
+          confirmLabel="Aceptar"
+          tone="default"
           busy={actionBusy}
           onCancel={() => setClearOpen(false)}
           onConfirm={() => void handleClear()}
