@@ -89,7 +89,7 @@ html, body {
   margin: 0;
   overscroll-behavior: none;
   /* Match the navbar where iOS paints the status bar and viewport edges. */
-  background: var(--color-surface);
+  background: var(--color-header, var(--color-surface));
 }
 
 /* Selector de fuente por cuenta (Ajustes › Tipografía). Gana a @theme por
@@ -128,6 +128,7 @@ body {
 
 .chat-header {
   padding-top: max(1rem, env(safe-area-inset-top));
+  background: var(--color-header, var(--color-surface));
 }
 
 .chat-footer {
@@ -334,6 +335,21 @@ body {
 [data-theme="pinkie-pie"] .theme-preview {
   background: linear-gradient(135deg, #fff1f8 0%, #f2ecff 58%, #e5f8f5 100%);
 }
+[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) {
+  background: var(--theme-bubble);
+  border-color: var(--theme-bubble);
+  color: var(--theme-bubble-ink);
+}
+[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) > span[aria-hidden="true"] {
+  border-top-color: var(--theme-bubble);
+}
+[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-meta,
+[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-trigger,
+[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-quote > span {
+  color: inherit;
+}
+[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-quote { border-color: currentColor; }
+[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-gutter { background: transparent; }
 .confirm-overlay {
   /* Prefijo primero: la minificación debe conservar la propiedad estándar. */
   -webkit-backdrop-filter: blur(10px);

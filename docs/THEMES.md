@@ -28,7 +28,7 @@ La foto seleccionada usa una URL blob local, revocada al reemplazar la selecció
 
 ## Área superior de iPhone
 
-La cabecera usa `--color-surface`. `useTheme` aplica `data-theme` y lee ese mismo token CSS para actualizar `meta[name="theme-color"]` antes de pintar. Esto cubre Telegram Dark y las once paletas previas, la selección manual y la preferencia guardada sin duplicar los colores en TypeScript. HTML y body también usan esa superficie en los bordes del viewport; `#root` conserva el fondo de contenido `--color-canvas`.
+La cabecera usa `--color-header` cuando existe (Pinkie Pie) y `--color-surface` en los otros temas. `useTheme` aplica `data-theme` y lee el mismo token CSS para actualizar `meta[name="theme-color"]` antes de pintar. Esto cubre Telegram Dark y las once paletas previas, la selección manual y la preferencia guardada sin duplicar los colores en TypeScript. HTML y body también usan el color de cabecera en los bordes del viewport; `#root` conserva el fondo de contenido `--color-canvas`.
 
 HTML y manifest arrancan con `#ffffff`, superficie del tema Blanco original. Se conservan `viewport-fit=cover`, la separación de la cabecera mediante `env(safe-area-inset-top)` y el estilo de status bar `default`. La documentación de [WebKit sobre Safari 15](https://webkit.org/blog/11989/new-webkit-features-in-safari-15/) describe `theme-color` para la barra de estado y overscroll; [Apple documenta los estilos de status bar](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html). El acabado que aplica iOS debe comprobarse en un iPhone real, tanto desde el icono de inicio como en Safari.
 
@@ -39,3 +39,6 @@ HTML y manifest arrancan con `#ffffff`, superficie del tema Blanco original. Se 
 
 
 RGB admite canales enteros de 0 a 255 y sincroniza el selector de color, la vista previa y la preferencia guardada. Valores vacíos o fuera de rango no se publican. El botón de fuego abre una confirmación centrada con desenfoque del fondo y entrada desde abajo; la animación respeta movimiento reducido. La superficie usa la paleta activa y Aceptar usa el color personalizado de globos si existe. El foco queda dentro del popup y vuelve al botón al cerrar.
+
+
+En Pinkie Pie los globos recibidos, sus colas y sus textos usan `--theme-bubble`/`--theme-bubble-ink`, igual al rosa de Según el tema para los propios. La cabecera y la barra de Safari usan `--color-header: #fbd1e6`. La presencia conectada usa verde fijo `#22c55e`, separado de los acentos de la paleta.

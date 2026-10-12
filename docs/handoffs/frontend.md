@@ -208,3 +208,11 @@ La QA del principal detectó que Vite inlineaba el SVG pequeño como `data:image
 - Validación: build frontend, 107 pruebas; Chromium 1440×900 y 390×844 con datos sintéticos comprobó RGB, fuente inicial, temas, icono, texto, centrado, blur, animación y cancelación sin DELETE. Capturas en `.data/qa/rgb-pinkie-confirmation/`. Publicación por CI/CD.
 
 - Ajuste final de compatibilidad: declarar `-webkit-backdrop-filter` antes de `backdrop-filter` evita que la minificación descarte la propiedad estándar. Verificado sobre el build de producción servido en 4173, en Chromium móvil/escritorio: `blur(10px)`, RGB, fuente, temas, popup y cancelación sin DELETE.
+
+
+## Pinkie Pie: globos recibidos, cabecera y presencia — 2026-10-12
+
+- Recibidos rosados según el tema (incluye cola, citas, metadatos y controles); colores personalizados siguen limitados a los propios.
+- Cabecera más rosada, con el mismo color en `theme-color` y bordes del viewport.
+- Presencia en verde fijo para todos los temas; estado desconectado conserva el color de línea.
+- Build frontend y QA de su versión minificada en 1440×900/390×844 con API y Socket.IO sintéticos: recibido/propio rosados, cabecera, metadata, verde tras eventos reales del cliente Socket.IO, cambio de tema y aislamiento del color propio. Capturas en `.data/qa/pinkie-received-header/`. Publicación por CI/CD.

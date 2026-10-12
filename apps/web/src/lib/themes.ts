@@ -60,7 +60,8 @@ export function useTheme(userId?: string, preferredDefault: ThemeId = DEFAULT_TH
     root.dataset.theme = theme;
     // Safari's surrounding UI must use the same surface as .chat-header.
     // Read the CSS token so all palettes stay in sync without a second map.
-    const navbarColor = getComputedStyle(root).getPropertyValue('--color-surface').trim();
+    const colors = getComputedStyle(root);
+    const navbarColor = colors.getPropertyValue('--color-header').trim() || colors.getPropertyValue('--color-surface').trim();
     if (navbarColor) {
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', navbarColor);
     }

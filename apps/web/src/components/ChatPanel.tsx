@@ -182,7 +182,7 @@ export function ChatPanel({
                 title={partnerOnline ? 'En línea' : 'Desconectado'}
                 key={partnerOnline ? 'online' : 'offline'}
                 className={`status-pop absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-surface transition-colors ${
-                  partnerOnline ? 'bg-success' : 'bg-line'
+                  partnerOnline ? 'bg-[#22c55e]' : 'bg-line'
                 }`}
               />
             </button>
