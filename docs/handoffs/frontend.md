@@ -206,3 +206,5 @@ La QA del principal detectó que Vite inlineaba el SVG pequeño como `data:image
 - Pinkie Pie: rosas/lavanda/menta pastel. Se conservan TODOS los temas previos, incluidos GitHub Light/Dark, Solarized Light/Dark y Gruvbox Dark.
 - Fuego para vaciar; popup centrado «¿Estás seguro?» y «Esto borrará toda la conversación.», Aceptar/Cancelar, entrada desde abajo, backdrop blur y colores activos. Foco contenido/restaurado, Escape y cancelar sin borrar, controles bloqueados durante la operación.
 - Validación: build frontend, 107 pruebas; Chromium 1440×900 y 390×844 con datos sintéticos comprobó RGB, fuente inicial, temas, icono, texto, centrado, blur, animación y cancelación sin DELETE. Capturas en `.data/qa/rgb-pinkie-confirmation/`. Publicación por CI/CD.
+
+- Ajuste final de compatibilidad: declarar `-webkit-backdrop-filter` antes de `backdrop-filter` evita que la minificación descarte la propiedad estándar. Verificado sobre el build de producción servido en 4173, en Chromium móvil/escritorio: `blur(10px)`, RGB, fuente, temas, popup y cancelación sin DELETE.

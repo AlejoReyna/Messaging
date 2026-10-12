@@ -335,8 +335,9 @@ body {
   background: linear-gradient(135deg, #fff1f8 0%, #f2ecff 58%, #e5f8f5 100%);
 }
 .confirm-overlay {
-  backdrop-filter: blur(10px);
+  /* Prefijo primero: la minificación debe conservar la propiedad estándar. */
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   animation: confirm-backdrop-in 180ms var(--ease-chat) both;
 }
 .confirm-panel { animation: confirm-rise-in 280ms var(--ease-chat) both; }
