@@ -8,6 +8,7 @@ import { formatTime, fullDate } from '../lib/format';
 import { getMessageSticker } from '../lib/stickers';
 import { snippetOf, type ReplySnapshot } from '../lib/reply';
 import { StickerImage } from './StickerImage';
+import { MessageMenu } from './MessageMenu';
 
 function QuoteBlock({ author, snippet, messageId, onQuoteClick }: {
   author: string;
@@ -76,6 +77,8 @@ export function MessageBubble({
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<number | null>(null);
   const touchOrigin = useRef<{ x: number; y: number } | null>(null);
   const swipedRef = useRef(false);
@@ -107,10 +110,13 @@ export function MessageBubble({
   useEffect(() => {
     if (!menuOpen) return;
     function onPointerDown(e: MouseEvent | TouchEvent) {
-      if (bubbleRef.current && !bubbleRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (!bubbleRef.current?.contains(e.target as Node) && !menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        menuTriggerRef.current?.focus({ preventScroll: true });
+      }
     }
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('touchstart', onPointerDown, { passive: true });
@@ -257,6 +263,7 @@ export function MessageBubble({
             : 'bg-transparent'
         }`}>
           <button
+            ref={menuTriggerRef}
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
             aria-label={`Opciones del mensaje de las ${timeLabel}`}
@@ -273,11 +280,7 @@ export function MessageBubble({
 
         {/* Menú estilo WhatsApp: Responder / Editar / Borrar para ambos. */}
         {menuOpen && (
-          <div
-            role="menu"
-            aria-label={`Opciones del mensaje de las ${timeLabel}`}
-            className="absolute right-1 top-8 z-30 min-w-[200px] overflow-hidden rounded-xl border border-line bg-surface py-1 shadow-[0_8px_30px_rgba(0,0,0,0.18)]"
-          >
+          <MessageMenu anchorRef={menuTriggerRef} menuRef={menuRef} label={`Opciones del mensaje de las ${timeLabel}`}>
             <button
               type="button"
               onClick={handleReply}
@@ -312,7 +315,7 @@ export function MessageBubble({
                 Borrar para ambos
               </button>
             )}
-          </div>
+          </MessageMenu>
         )}
 
         {message.replyTo && replyAuthorName && (
