@@ -338,12 +338,12 @@ body {
 [data-theme="madoka"] .own-bubble,
 [data-theme="madoka"] .message-bubble:not([data-sticker="true"]) { color: #ffffff; }
 [data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) {
-  background: var(--theme-bubble);
-  border-color: var(--theme-bubble);
-  color: var(--theme-bubble-ink);
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #000000;
 }
 [data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) > span[aria-hidden="true"] {
-  border-top-color: var(--theme-bubble);
+  border-top-color: #ffffff;
 }
 [data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-meta,
 [data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-trigger,
