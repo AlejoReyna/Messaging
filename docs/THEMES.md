@@ -1,6 +1,6 @@
 # Temas y personalización
 
-Diez adaptaciones de paletas existentes para el chat. Se conservan sus colores de fondo y acento, asignándolos a superficies, texto, burbujas y acciones. Telegram Dark es la opción predeterminada desde el 2026-10-12, inspirada en las capturas del usuario; las opciones anteriores se conservan.
+Catorce opciones de apariencia para el chat. Se conservan sus colores de fondo y acento, asignándolos a superficies, texto, burbujas y acciones. Blanco original vuelve a ser la opción inicial desde el 2026-10-12; Nocturno añade globos morados. Las doce paletas anteriores se conservan.
 
 | Temas | Fuente original |
 | --- | --- |
@@ -14,7 +14,7 @@ Diez adaptaciones de paletas existentes para el chat. Se conservan sus colores d
 
 Los colores funcionales de lectura, peligro y texto secundario se ajustan cuando la paleta original no alcanza 4.5:1 en las superficies del chat. No son paquetes oficiales de estas marcas ni cambios en la identidad de la app.
 
-`apps/web/src/themes.css` contiene Telegram Dark y las once paletas previas mediante variables CSS y selectores `data-theme`. Telegram Dark es la opción inicial para ambas cuentas; una preferencia guardada por esa cuenta tiene prioridad. No requiere estilos inline, fuentes externas ni dependencias nuevas. Los componentes usan colores semánticos, incluidos texto de botones y diálogos de peligro en temas oscuros.
+`apps/web/src/themes.css` contiene Blanco original, Nocturno y las doce paletas previas mediante variables CSS y selectores `data-theme`. Blanco original es la opción inicial para ambas cuentas. La nueva clave `private-chat:theme:v2:<userId>` vuelve al blanco una vez y recuerda elecciones posteriores. El interruptor nocturno alterna pares de paletas claros/oscuros cuando existen. No requiere fuentes externas ni dependencias nuevas. Los componentes usan colores semánticos, incluidos texto de botones y diálogos de peligro en temas oscuros.
 
 La preferencia usa la clave `private-chat:theme:<userId>` en localStorage y sólo almacena el identificador del tema. No contiene credenciales, tokens, nombres, fotos ni mensajes. Es local a la cuenta y al navegador: no se sincroniza entre dispositivos. Si el almacenamiento está bloqueado, la selección funciona durante la sesión; si el valor guardado no existe, se usa GitHub Light.
 
@@ -30,4 +30,9 @@ La foto seleccionada usa una URL blob local, revocada al reemplazar la selecció
 
 La cabecera usa `--color-surface`. `useTheme` aplica `data-theme` y lee ese mismo token CSS para actualizar `meta[name="theme-color"]` antes de pintar. Esto cubre Telegram Dark y las once paletas previas, la selección manual y la preferencia guardada sin duplicar los colores en TypeScript. HTML y body también usan esa superficie en los bordes del viewport; `#root` conserva el fondo de contenido `--color-canvas`.
 
-HTML y manifest arrancan con `#ffffff`, superficie del tema inicial GitHub Light. Se conservan `viewport-fit=cover`, la separación de la cabecera mediante `env(safe-area-inset-top)` y el estilo de status bar `default`. La documentación de [WebKit sobre Safari 15](https://webkit.org/blog/11989/new-webkit-features-in-safari-15/) describe `theme-color` para la barra de estado y overscroll; [Apple documenta los estilos de status bar](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html). El acabado que aplica iOS debe comprobarse en un iPhone real, tanto desde el icono de inicio como en Safari.
+HTML y manifest arrancan con `#ffffff`, superficie del tema Blanco original. Se conservan `viewport-fit=cover`, la separación de la cabecera mediante `env(safe-area-inset-top)` y el estilo de status bar `default`. La documentación de [WebKit sobre Safari 15](https://webkit.org/blog/11989/new-webkit-features-in-safari-15/) describe `theme-color` para la barra de estado y overscroll; [Apple documenta los estilos de status bar](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html). El acabado que aplica iOS debe comprobarse en un iPhone real, tanto desde el icono de inicio como en Safari.
+
+
+## Color de los globos y ajustes a pantalla completa
+
+`useBubbleColor` guarda por cuenta `theme` o un color hexadecimal en `private-chat:bubble:<userId>`. Sólo afecta los mensajes propios y sus pendientes; las fuentes y los temas siguen siendo independientes. El texto se elige entre blanco/negro mediante luminancia relativa para maximizar contraste. Volver a Según el tema elimina las variables CSS personalizadas; Nocturno usa morado por defecto. Ajustes tiene dimensiones del viewport y barra superior fija con Cerrar; Escape también lo cierra.

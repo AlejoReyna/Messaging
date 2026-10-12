@@ -165,7 +165,7 @@ export function ChatPanel({
     >
       {backgroundUrl && <img src={backgroundUrl} alt="" aria-hidden="true" className="chat-background-image pointer-events-none absolute inset-0 h-full w-full object-cover" />}
       {/* Cabecera con avatar del contacto */}
-      <header className="chat-header relative flex shrink-0 items-center gap-3 px-4 pb-4 pt-4 text-ink sm:px-6">
+      <header className="chat-header relative flex shrink-0 items-center gap-3 border-b border-line/70 bg-surface px-4 pb-3 pt-4 text-ink sm:px-6">
         {showSidebarToggle && (
           <span className="grid h-10 w-10 place-items-center rounded-full bg-surface-muted text-muted" aria-hidden="true">
             <ArrowLeft className="h-5 w-5" />
@@ -187,7 +187,7 @@ export function ChatPanel({
               />
             </button>
             <div className="min-w-0 flex-1">
-              <h2 className="truncate text-[17px] font-bold leading-tight">{partner.displayName}</h2>
+              <h2 className="truncate text-lg font-bold leading-tight">{partner.displayName}</h2>
               <p
                 aria-live="polite"
                 key={partnerTyping ? 'typing' : partnerOnline ? 'online' : 'offline'}
@@ -199,7 +199,7 @@ export function ChatPanel({
           </>
         ) : (
           <div className="min-w-0 flex-1">
-            <h2 className="text-[17px] font-bold">Conversación</h2>
+            <h2 className="text-lg font-bold">Conversación</h2>
             <p className="text-xs text-muted">Cargando contacto…</p>
           </div>
         )}
@@ -374,7 +374,7 @@ export function ChatPanel({
       </div>
 
       {/* Entrada */}
-      <footer className="chat-footer relative shrink-0 px-3 pb-3 pt-3 sm:px-6 sm:pb-5">
+      <footer className="chat-footer relative shrink-0 border-t border-line/70 bg-surface px-4 pb-4 pt-4 sm:px-6 sm:pb-5">
         <Composer onSendPhoto={onSendPhoto} onSendVideo={onSendVideo} onSendAudio={onSendAudio} onSend={onSend} onTyping={onTyping}
           disabled={loading || !!loadError} replyTo={replyTo} onCancelReply={() => setReplyTo(null)} />
       </footer>

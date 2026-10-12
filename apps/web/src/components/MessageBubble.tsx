@@ -19,7 +19,7 @@ function QuoteBlock({ author, snippet, messageId, onQuoteClick }: {
     <span className="block truncate text-[14px] font-bold text-accent">{author}</span>
     <span className="block truncate text-[15px] text-muted">{snippet}</span>
   </>;
-  const cls = 'mb-1 block w-full rounded-md border-l-2 border-accent bg-black/[0.04] px-2 py-1 text-left transition hover:bg-black/[0.08]';
+  const cls = 'message-quote mb-1 block w-full rounded-md border-l-2 border-accent bg-black/[0.04] px-2 py-1 text-left transition hover:bg-black/[0.08]';
   return onQuoteClick
     ? <button type="button" onClick={() => onQuoteClick(messageId)}
         aria-label={`Ver mensaje original de ${author}`} className={cls}>{inner}</button>
@@ -37,7 +37,7 @@ function MetaInline({ createdAt, mine, read, animate, light = false }: {
   const time = formatTime(createdAt);
   const tickPop = animate ? ' tick-pop' : '';
   return (
-    <span className={`ml-2 inline-flex translate-y-[2px] select-none items-center gap-1 whitespace-nowrap align-middle text-[12px] font-normal leading-none ${
+    <span className={`message-meta ml-2 inline-flex translate-y-[2px] select-none items-center gap-1 whitespace-nowrap align-middle text-[12px] font-normal leading-none ${
       light ? 'text-white/90' : 'text-muted'
     }`}>
       <time dateTime={createdAt} title={fullDate(createdAt)}>{time}</time>
@@ -177,6 +177,8 @@ export function MessageBubble({
     <div className={`group flex w-full ${mine ? 'justify-end' : 'justify-start'}`}>
       <div
         ref={bubbleRef}
+        data-mine={mine}
+        data-sticker={Boolean(sticker)}
         onContextMenu={handleContextMenu}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -312,7 +314,7 @@ export function PendingBubble({
   const sticker = photo || video || audio ? undefined : getMessageSticker(body);
   return (
     <div className="flex w-full justify-end">
-      <div className="enter-pop-mine message-bubble relative max-w-[86%] rounded-[20px] border border-dashed border-line bg-accent-soft/70 px-3 py-2 text-[17px] leading-[1.45] text-ink shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] sm:max-w-[70%]">
+      <div data-mine="true" data-sticker={Boolean(sticker)} className="enter-pop-mine message-bubble relative max-w-[86%] rounded-[20px] border border-dashed border-line bg-accent-soft/70 px-3 py-2 text-[17px] leading-[1.45] text-ink shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] sm:max-w-[70%]">
         <span aria-hidden="true" className="absolute -right-2 top-0 h-0 w-0 border-b-0 border-l-0 border-r-8 border-t-8 border-r-transparent border-t-accent-soft/70" />
         {replyTo && (
           <QuoteBlock author={replyTo.author} messageId={replyTo.messageId}
@@ -322,7 +324,7 @@ export function PendingBubble({
         {photo && <PendingPhoto file={photo} />}
         {video && <PendingVideo file={video} />}
         {sticker ? <StickerImage key={sticker.id} sticker={sticker} />
-          : ((!photo && !video && !audio) || body !== (audio ? AUDIO_MESSAGE_BODY : video ? VIDEO_MESSAGE_BODY : PHOTO_MESSAGE_BODY)) && <p className="whitespace-pre-wrap break-words px-0.5 opacity-80" lang="es">{body}<span className="ml-2 inline-flex translate-y-[2px] select-none items-center gap-1 whitespace-nowrap align-middle text-[12px] font-normal leading-none text-muted">
+          : ((!photo && !video && !audio) || body !== (audio ? AUDIO_MESSAGE_BODY : video ? VIDEO_MESSAGE_BODY : PHOTO_MESSAGE_BODY)) && <p className="whitespace-pre-wrap break-words px-0.5 opacity-80" lang="es">{body}<span className="message-meta ml-2 inline-flex translate-y-[2px] select-none items-center gap-1 whitespace-nowrap align-middle text-[12px] font-normal leading-none text-muted">
             {failed ? (
               <span className="inline-flex items-center gap-1 font-semibold text-danger">
                 <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" /> No enviado
@@ -343,7 +345,7 @@ export function PendingBubble({
             </button>
           </div>
         ) : (sticker || photo || video || audio) && (
-          <div className="mt-0.5 flex items-center justify-end text-[12px] text-muted">
+          <div className="message-meta mt-0.5 flex items-center justify-end text-[12px] text-muted">
             <span className="inline-flex animate-pulse items-center gap-1">
               <Clock3 className="h-3.5 w-3.5" aria-hidden="true" /> Enviando…
             </span>

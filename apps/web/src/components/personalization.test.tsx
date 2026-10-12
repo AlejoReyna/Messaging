@@ -6,7 +6,8 @@ import { AvatarPreview } from './AvatarPreview';
 import { ThemePicker } from './ThemePicker';
 import { FontPicker } from './FontPicker';
 import { ProfileDialog } from './ProfileDialog';
-import { DEFAULT_THEME, THEMES, useTheme } from '../lib/themes';
+import { DEFAULT_THEME, THEMES, themeForMode, useTheme } from '../lib/themes';
+import { bubbleTextColor, useBubbleColor } from '../lib/bubbles';
 import { DEFAULT_FONT, FONTS, useFont } from '../lib/fonts';
 
 const me: PublicUser = {
@@ -123,6 +124,60 @@ describe('vista previa del avatar', () => {
 });
 
 describe('personalización por cuenta', () => {
+  it('vuelve al blanco original y permite alternar modo nocturno sin perder la fuente guardada', () => {
+    window.localStorage.setItem('private-chat:theme:account-one', 'telegram-dark');
+    window.localStorage.setItem('private-chat:font:account-one', 'nunito');
+    const theme = renderHook(() => useTheme('account-one'));
+    const font = renderHook(() => useFont('account-one'));
+    expect(theme.result.current.theme).toBe('original');
+    expect(font.result.current.font).toBe('nunito');
+    const onChange = vi.fn();
+    const picker = render(<ThemePicker theme="original" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('switch', { name: 'Modo nocturno' }));
+    expect(onChange).toHaveBeenCalledWith('night');
+    picker.rerender(<ThemePicker theme="night" onChange={onChange} />);
+    expect(screen.getByRole('switch', { name: 'Modo nocturno' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('switch', { name: 'Modo nocturno' }));
+    expect(onChange).toHaveBeenLastCalledWith('original');
+    expect(themeForMode('catppuccin-latte', true)).toBe('catppuccin-mocha');
+    expect(themeForMode('solarized-dark', false)).toBe('solarized-light');
+  });
+
+  it('recuerda colores personalizados por cuenta, rechaza valores inválidos y restaura el color del tema', () => {
+    const first = renderHook(({ id }) => useBubbleColor(id), { initialProps: { id: 'one' } });
+    act(() => first.result.current.chooseBubbleColor('#7c3aed'));
+    expect(document.documentElement.style.getPropertyValue('--bubble-custom')).toBe('#7c3aed');
+    expect(document.documentElement.style.getPropertyValue('--bubble-custom-ink')).toBe('#ffffff');
+    first.unmount();
+    const next = renderHook(({ id }) => useBubbleColor(id), { initialProps: { id: 'one' } });
+    expect(next.result.current.bubbleColor).toBe('#7c3aed');
+    next.rerender({ id: 'two' });
+    expect(next.result.current.bubbleColor).toBe('theme');
+    expect(document.documentElement.style.getPropertyValue('--bubble-custom')).toBe('');
+    act(() => next.result.current.chooseBubbleColor('url(https://invalid.example)'));
+    expect(next.result.current.bubbleColor).toBe('theme');
+    act(() => next.result.current.chooseBubbleColor('#ffffff'));
+    expect(bubbleTextColor('#ffffff')).toBe('#000000');
+    act(() => next.result.current.chooseBubbleColor('theme'));
+    expect(document.documentElement.style.getPropertyValue('--bubble-custom-ink')).toBe('');
+  });
+
+  it('cierra ajustes con el botón y Escape y permite elegir el color sin peticiones al servidor', () => {
+    const onClose = vi.fn();
+    const onColor = vi.fn();
+    render(<ProfileDialog me={me} theme="original" onChooseTheme={vi.fn()} font="inter" onChooseFont={vi.fn()}
+      bubbleColor="theme" onChooseBubbleColor={onColor} avatarOpen={false} onOpenAvatar={vi.fn()} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Morado' }));
+    expect(onColor).toHaveBeenCalledWith('#7c3aed');
+    fireEvent.change(screen.getByLabelText('Color personalizado'), { target: { value: '#123456' } });
+    expect(onColor).toHaveBeenLastCalledWith('#123456');
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar ajustes' }));
+    expect(onClose).toHaveBeenCalledOnce();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('el lápiz enfoca el nombre y guardar modifica únicamente el perfil propio con CSRF', async () => {
     render(<ProfileDialog me={me} theme="github-light" onChooseTheme={vi.fn()} font="patrick-hand" onChooseFont={vi.fn()} avatarOpen={false}
       onOpenAvatar={vi.fn()} onClose={vi.fn()} />);

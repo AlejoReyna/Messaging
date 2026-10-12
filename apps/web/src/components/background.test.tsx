@@ -51,7 +51,7 @@ describe('fondo personal', () => {
     const file = new File(['image'], 'fondo.png', { type: 'image/png' });
     fireEvent.change(screen.getByLabelText('Elegir imagen de fondo'), { target: { files: [file] } });
     fireEvent.load(screen.getByRole('img')); fireEvent.click(screen.getByRole('button', { name: 'Guardar fondo' }));
-    await waitFor(() => expect(save).toHaveBeenCalledWith({ preset: 'doodle', image: file }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ preset: 'plain', image: file }));
     expect(fetch).not.toHaveBeenCalled(); await screen.findByRole('status');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar fondo' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Azul profundo' }));

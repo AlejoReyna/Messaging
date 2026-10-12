@@ -3,6 +3,8 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 // Paletas existentes, adaptadas a los roles de color de la conversación.
 // Las fuentes oficiales y los ajustes de contraste están en docs/THEMES.md.
 export const THEMES = [
+  { id: 'original', name: 'Blanco original', mode: 'Claro' },
+  { id: 'night', name: 'Nocturno · morado', mode: 'Oscuro' },
   { id: 'telegram-dark', name: 'Telegram Dark', mode: 'Oscuro' },
   { id: 'github-light', name: 'GitHub Light', mode: 'Claro' },
   { id: 'cocoa', name: 'Cocoa', mode: 'Claro' },
@@ -18,8 +20,23 @@ export const THEMES = [
 ] as const;
 
 export type ThemeId = typeof THEMES[number]['id'];
-export const DEFAULT_THEME: ThemeId = 'telegram-dark';
-export const MEMBER_DEFAULT_THEME: ThemeId = 'telegram-dark';
+export const DEFAULT_THEME: ThemeId = 'original';
+export const MEMBER_DEFAULT_THEME: ThemeId = 'original';
+
+export function isDarkTheme(theme: ThemeId) {
+  return THEMES.find((option) => option.id === theme)?.mode === 'Oscuro';
+}
+
+export function themeForMode(theme: ThemeId, dark: boolean): ThemeId {
+  if (isDarkTheme(theme) === dark) return theme;
+  const pairs: Partial<Record<ThemeId, ThemeId>> = {
+    original: 'night', night: 'original',
+    'github-light': 'github-dark', 'github-dark': 'github-light',
+    'catppuccin-latte': 'catppuccin-mocha', 'catppuccin-mocha': 'catppuccin-latte',
+    'solarized-light': 'solarized-dark', 'solarized-dark': 'solarized-light',
+  };
+  return pairs[theme] ?? (dark ? 'night' : 'original');
+}
 
 function isTheme(value: string | null): value is ThemeId {
   return THEMES.some((theme) => theme.id === value);
@@ -27,7 +44,9 @@ function isTheme(value: string | null): value is ThemeId {
 
 export function useTheme(userId?: string, preferredDefault: ThemeId = DEFAULT_THEME) {
   const [theme, setTheme] = useState<ThemeId>(DEFAULT_THEME);
-  const key = userId ? `private-chat:theme:${userId}` : null;
+  // Nueva versión: volver al blanco original una vez; conservar después la elección.
+  // La tipografía usa su clave anterior y no se reinicia.
+  const key = userId ? `private-chat:theme:v2:${userId}` : null;
 
   useEffect(() => {
     let saved: string | null = null;

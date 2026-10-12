@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 export const BACKGROUNDS = [
+  { id: 'plain', name: 'Liso · según el tema' },
   { id: 'doodle', name: 'Trazos nocturnos' },
   { id: 'midnight', name: 'Negro' },
   { id: 'ocean', name: 'Azul profundo' },
@@ -9,7 +10,7 @@ export const BACKGROUNDS = [
 ] as const;
 export type BackgroundPreset = typeof BACKGROUNDS[number]['id'];
 export type ChatBackground = { preset: BackgroundPreset; image?: Blob };
-export const DEFAULT_BACKGROUND: ChatBackground = { preset: 'doodle' };
+export const DEFAULT_BACKGROUND: ChatBackground = { preset: 'plain' };
 
 /** Only this browser stores this account's chosen picture; no request to the API. */
 export async function backgroundStorage(userId: string, value?: ChatBackground): Promise<ChatBackground> {

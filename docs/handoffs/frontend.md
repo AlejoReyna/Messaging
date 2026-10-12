@@ -187,3 +187,13 @@ Dependencias nuevas: ninguna. La producción requiere el contrato/API v7 y permi
 La QA del principal detectó que Vite inlineaba el SVG pequeño como `data:image/svg+xml`, bloqueado por la CSP existente `img-src 'self' blob:`. Se cambió exclusivamente la referencia de `src/index.css` a `doodle.svg?no-inline`; la CSP conserva su política.
 
 `npm run build -w @private-chat/web` (TypeScript + Vite) y `git diff --check -- apps/web/src/index.css` → OK. Inspección programática del CSS compilado confirma `url(/assets/doodle-DZqywCZc.svg)`, el archivo SVG de 1466 bytes existe en `dist/assets`, y hay **cero `data:image/svg`** en el CSS generado. Artefactos finales: `index-DuKMce5h.css`, `index-C-nHS7hw.js`. No se repitió la suite funcional porque el cambio sólo modifica la emisión del asset; despliegue web y revisión bajo CSP corresponden al principal.
+
+
+## Recuperación del estilo blanco y personalización — 2026-10-12
+
+- Distribución de la mañana del 11 de octubre: rail de 72 px, cabecera sencilla, entrada clara y fondo liso. Conserva medios, respuestas y controles actuales.
+- Blanco original como inicio; variante Nocturno con globos morados y selector de temas completo. Interruptor nocturno alterna variantes compatibles de la paleta.
+- Color de los globos propios por cuenta: según tema, seis presets y color personalizado con contraste automático. Cinco fuentes y preferencias existentes conservadas.
+- Ajustes a pantalla completa en móvil y escritorio, Cerrar fijo arriba, Escape y foco contenido.
+- Copias de los dos componentes con cambios locales anteriores en `.data/appearance-before-original/`, fuera de Git.
+- Validación: build frontend y 102 pruebas frontend; QA en Chromium a 1440×900 y 390×844 con datos sintéticos: modo nocturno, colores, cambio de tema/fuente, persistencia tras recargar, dimensiones fullscreen, cierre por botón/Escape y ausencia de overflow horizontal. Capturas en `.data/qa/original-appearance/`. Publicación mediante CI/CD.

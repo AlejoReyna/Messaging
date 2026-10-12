@@ -177,7 +177,7 @@ export function Composer({
         </div>
       )}
       {photoError && <p role="alert" className="text-[15px] text-danger">{photoError}</p>}
-      {/* Compositor de píldora con adjuntos y grabación explícita. */}
+      {/* Compositor claro original con adjuntos y grabación explícita. */}
       <div className={`composer-row relative flex items-center gap-1.5 sm:gap-2 ${voiceActive ? 'voice-active' : ''}`} >
       {(onSendPhoto || onSendVideo) && <button ref={attachmentButton} type="button" disabled={disabled || sending || !!sticker || voiceActive}
         aria-label="Adjuntar foto o video" aria-expanded={attachmentsOpen} onClick={() => setAttachmentsOpen((open) => !open)}
@@ -195,7 +195,7 @@ export function Composer({
         disabled={disabled || !!sticker || voiceActive}
         onChange={(e) => handleChange(e.target.value)}
         placeholder={sticker ? 'Sticker listo para enviar' : photo || video ? 'Añade un texto…' : placeholder ?? 'Escribe un mensaje…'}
-        className="min-h-[50px] w-full min-w-0 rounded-full border border-line bg-surface py-2.5 pl-5 pr-12 text-[17px] text-ink shadow-sm placeholder:text-muted transition-shadow duration-200 focus:border-accent focus:shadow-md disabled:opacity-60"
+        className="min-h-[50px] w-full min-w-0 rounded-2xl border border-line bg-surface-muted py-2.5 pl-4 pr-12 text-[16px] text-ink shadow-sm placeholder:text-muted transition-shadow duration-200 focus:border-accent focus:shadow-md disabled:opacity-60"
       />
       <button ref={stickerToggleRef} type="button" disabled={disabled || sending || !!photo || !!video}
         onClick={() => stickersOpen ? closeStickers() : setStickersOpen(true)}

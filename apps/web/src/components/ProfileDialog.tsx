@@ -9,17 +9,20 @@ import { PinChangeForm } from './PinChangeForm';
 import { PushSettings } from './PushSettings';
 import { ThemePicker } from './ThemePicker';
 import { FontPicker } from './FontPicker';
+import { BubbleColorPicker } from './BubbleColorPicker';
 import type { ThemeId } from '../lib/themes';
 import type { FontId } from '../lib/fonts';
 import { BackgroundPicker } from './BackgroundPicker';
 import type { ChatBackground } from '../lib/background';
 
-export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, background, onSaveBackground, avatarOpen, onOpenAvatar, onClose }: {
+export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, bubbleColor = 'theme', onChooseBubbleColor, background, onSaveBackground, avatarOpen, onOpenAvatar, onClose }: {
   me: PublicUser;
   theme: ThemeId;
   onChooseTheme: (theme: ThemeId) => void;
   font: FontId;
   onChooseFont: (font: FontId) => void;
+  bubbleColor?: string;
+  onChooseBubbleColor?: (color: string) => void;
   background?: ChatBackground;
   onSaveBackground?: (background: ChatBackground) => Promise<void>;
   avatarOpen: boolean;
@@ -41,7 +44,7 @@ export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, ba
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
       if (e.key !== 'Tab') return;
-      const elements = panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="radio"]), input[type="radio"]:checked');
+      const elements = panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="radio"]):not([type="file"]), input[type="radio"]:checked');
       const first = elements?.[0];
       const last = elements?.[elements.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
@@ -85,24 +88,24 @@ export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, ba
   }
 
   return (
-    <div className="settings-overlay fixed inset-0 z-50 grid place-items-center bg-overlay/50 p-4"
-      role="presentation" aria-hidden={avatarOpen || undefined} inert={avatarOpen || undefined}
-      onClick={() => { if (!avatarOpen) onClose(); }}>
+    <div className="settings-overlay fixed inset-0 z-50 bg-surface"
+      role="presentation" aria-hidden={avatarOpen || undefined} inert={avatarOpen || undefined}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="profile-title"
         onClick={(e) => e.stopPropagation()}
-        className="profile-panel relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-line/70 bg-surface p-6 shadow-dialog"
+        className="profile-panel relative h-dvh w-full overflow-y-auto bg-surface"
       >
-        <div className="settings-toolbar sticky z-20 flex items-center justify-between gap-3 bg-canvas py-2">
+        <div className="settings-toolbar sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 sm:px-8">
           <h2 id="profile-title" className="text-lg font-bold">Ajustes</h2>
           <button type="button" onClick={onClose} aria-label="Cerrar ajustes"
-            className="grid max-h-[44px] min-h-[44px] min-w-[44px] place-items-center rounded-full bg-surface-muted text-ink transition-all duration-200 hover:scale-105 hover:bg-surface-hover active:scale-95">
-            <X className="h-5 w-5" aria-hidden="true" />
+            className="flex min-h-11 items-center gap-2 rounded-full bg-surface-muted px-4 text-sm text-ink transition hover:bg-surface-hover">
+            Cerrar <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
+        <div className="settings-content mx-auto w-full max-w-3xl px-4 py-6 sm:px-8">
         <div className="profile-heading flex items-center gap-3 text-left">
           <div className="profile-identity flex min-w-0 flex-row items-center gap-3">
             <button type="button" onClick={onOpenAvatar} aria-label={`Cambiar imagen de ${me.displayName}`}
@@ -164,6 +167,8 @@ export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, ba
 
         <ThemePicker theme={theme} onChange={onChooseTheme} />
 
+        {onChooseBubbleColor && <BubbleColorPicker color={bubbleColor} onChange={onChooseBubbleColor} />}
+
         <FontPicker font={font} onChange={onChooseFont} />
 
         <PushSettings />
@@ -172,6 +177,7 @@ export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, ba
           className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-surface-muted text-sm font-semibold text-ink hover:bg-surface-hover disabled:opacity-60">
           <LogOut className="h-4 w-4" aria-hidden="true" /> {busy ? 'Cerrando…' : 'Cerrar sesión'}
         </button>
+        </div>
       </div>
     </div>
   );

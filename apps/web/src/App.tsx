@@ -10,6 +10,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { AvatarEditor } from './components/AvatarEditor';
 import { useTheme } from './lib/themes';
 import { useFont } from './lib/fonts';
+import { useBubbleColor } from './lib/bubbles';
 import { useBackground } from './lib/background';
 
 function Shell() {
@@ -21,6 +22,7 @@ function Shell() {
   // Tema y tipografía guardados de la cuenta; se exponen en el diálogo de ajustes.
   const { theme, chooseTheme } = useTheme(session.user?.id);
   const { font, chooseFont } = useFont(session.user?.id);
+  const { bubbleColor, chooseBubbleColor } = useBubbleColor(session.user?.id);
   const { background, saveBackground } = useBackground(session.user?.id);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
@@ -110,8 +112,6 @@ function Shell() {
         me={me}
         partner={chat.partner}
         unread={unread}
-        lastMessage={lastMessage}
-        onOpenSettings={() => setSettingsOpen(true)}
         onOpenConversation={() => document.getElementById('composer')?.focus()}
         onOpenAvatar={() => setAvatarOpen(true)}
         onLogout={() => void session.logout()}
@@ -177,6 +177,7 @@ function Shell() {
       </div>
 
       {settingsOpen && <ProfileDialog me={me} theme={theme} onChooseTheme={chooseTheme} font={font} onChooseFont={chooseFont}
+        bubbleColor={bubbleColor} onChooseBubbleColor={chooseBubbleColor}
         background={background} onSaveBackground={saveBackground} avatarOpen={avatarOpen} onOpenAvatar={() => setAvatarOpen(true)} onClose={closeSettings} />}
       {avatarOpen && <AvatarEditor me={me} csrfToken={session.csrfToken}
         onSaved={session.setUser} onClose={closeAvatar} />}

@@ -1,11 +1,19 @@
-import { Check, Palette } from 'lucide-react';
-import { THEMES, type ThemeId } from '../lib/themes';
+import { Check, Moon, Palette } from 'lucide-react';
+import { THEMES, isDarkTheme, themeForMode, type ThemeId } from '../lib/themes';
 
 export function ThemePicker({ theme, onChange }: { theme: ThemeId; onChange: (theme: ThemeId) => void }) {
   return (
     <section className="mt-5 border-t border-line pt-5" aria-labelledby="theme-title">
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <span className="flex items-center gap-2 text-sm font-semibold"><Moon className="h-4 w-4" aria-hidden="true" />Modo nocturno</span>
+        <button type="button" role="switch" aria-label="Modo nocturno" aria-checked={isDarkTheme(theme)}
+          onClick={() => onChange(themeForMode(theme, !isDarkTheme(theme)))}
+          className="min-h-11 rounded-full border border-line bg-surface-muted px-4 text-sm font-semibold text-ink">
+          {isDarkTheme(theme) ? 'Activado' : 'Desactivado'}
+        </button>
+      </div>
       <h3 id="theme-title" className="flex items-center gap-2 text-sm font-semibold text-ink">
-        <Palette className="h-4 w-4" aria-hidden="true" /> Personalización
+        <Palette className="h-4 w-4" aria-hidden="true" /> Temas
       </h3>
       <p className="mt-1 text-xs leading-relaxed text-muted">Elige una paleta. El tema se aplica al momento y se recuerda para tu cuenta en este navegador.</p>
       <fieldset className="mt-3 grid grid-cols-2 gap-2.5">
