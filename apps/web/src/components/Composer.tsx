@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent } from 'react';
 import { ImagePlus, Paperclip, Reply, SendHorizontal, Sticker, Video, X } from 'lucide-react';
 import { MAX_MESSAGE_LENGTH, MAX_CHAT_VIDEO_SECONDS } from '@private-chat/contracts';
 import { validateAvatarFile, validateVideoFile } from '../lib/api';
@@ -86,6 +86,44 @@ export function Composer({
     stopTimer.current = window.setTimeout(() => onTyping(false), 4000);
   }
 
+  function handlePaste(event: ClipboardEvent) {
+    if (disabled || sending || voiceActive || !onSendPhoto || sticker) return;
+    const data = event.clipboardData;
+    if (!data) return;
+    const candidates: File[] = [];
+    if (data.files?.length) {
+      for (const file of Array.from(data.files)) {
+        if (file.type.startsWith('image/')) candidates.push(file);
+      }
+    }
+    if (candidates.length === 0 && data.items?.length) {
+      for (const item of Array.from(data.items)) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) candidates.push(file);
+        }
+      }
+    }
+    if (candidates.length === 0) return;
+    const file = candidates[0]!;
+    const target = event.target as HTMLElement | null;
+    const pastedInInput = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
+    setVideo(null);
+    setVideoReady(false);
+    setVideoPreviewUnavailable(false);
+    const problem = validateAvatarFile(file);
+    setPhotoError(problem);
+    setPhoto(problem ? null : file);
+    setPhotoReady(false);
+    setStickersOpen(false);
+    setAttachmentsOpen(false);
+    if (!problem && !pastedInInput) {
+      const text = data.getData('text/plain');
+      if (text && !value.trim()) handleChange(text.slice(0, MAX_MESSAGE_LENGTH + 100));
+      inputRef.current?.focus();
+    }
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     const body = value.trim();
@@ -119,7 +157,7 @@ export function Composer({
     (sticker ? stickerReady : video ? videoReady : photo ? photoReady : value.trim().length > 0);
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-2" aria-label="Enviar mensaje"
+    <form onSubmit={submit} onPaste={handlePaste} className="flex flex-col gap-2" aria-label="Enviar mensaje"
       onKeyDown={(event) => {
         if (event.key === 'Escape' && attachmentsOpen) { event.preventDefault(); event.stopPropagation(); setAttachmentsOpen(false); attachmentButton.current?.focus(); }
         if (event.key === 'Escape' && stickersOpen) { event.preventDefault(); event.stopPropagation(); closeStickers(); }

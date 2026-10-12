@@ -68,3 +68,58 @@ describe('envío de fotos', () => {
     expect(body.get('photo')).toBeInstanceOf(File);
   });
 });
+
+describe('pegar imágenes', () => {
+  function paste(target: HTMLElement, clipboardData: unknown) {
+    fireEvent.paste(target, { clipboardData });
+  }
+  it('pegar imagen en el campo adjunta foto sin enviar y conserva el pie escrito', async () => {
+    const onSendPhoto = vi.fn().mockResolvedValue(undefined);
+    render(<Composer onSend={vi.fn()} onSendPhoto={onSendPhoto} onTyping={vi.fn()} />);
+    const input = screen.getByLabelText('Escribe un mensaje');
+    const file = new File(['photo'], 'pegada.png', { type: 'image/png' });
+    paste(input, { files: [file], items: [], getData: () => '' });
+    expect(onSendPhoto).not.toHaveBeenCalled();
+    expect(screen.getByAltText('Foto lista para enviar')).toHaveAttribute('src', 'blob:local-photo');
+    expect(screen.getByRole('button', { name: 'Enviar mensaje' })).toBeDisabled();
+    fireEvent.load(screen.getByAltText('Foto lista para enviar'));
+    fireEvent.change(input, { target: { value: 'pie de foto' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar mensaje' }));
+    await waitFor(() => expect(onSendPhoto).toHaveBeenCalledExactlyOnceWith(file, 'pie de foto', null));
+  });
+  it('pegar vía items del portapapeles (captura) también adjunta', () => {
+    render(<Composer onSend={vi.fn()} onSendPhoto={vi.fn()} onTyping={vi.fn()} />);
+    const input = screen.getByLabelText('Escribe un mensaje');
+    const file = new File(['shot'], 'captura.png', { type: 'image/png' });
+    paste(input, { files: [], items: [{ type: 'image/png', getAsFile: () => file }], getData: () => '' });
+    expect(screen.getByAltText('Foto lista para enviar')).toBeInTheDocument();
+  });
+  it('pegar fuera del campo usa el texto del portapapeles como pie', () => {
+    const onTyping = vi.fn();
+    render(<Composer onSend={vi.fn()} onSendPhoto={vi.fn()} onTyping={onTyping} />);
+    const file = new File(['photo'], 'pegada.png', { type: 'image/png' });
+    paste(screen.getByRole('button', { name: 'Adjuntar foto o video' }),
+      { files: [file], items: [], getData: () => 'Hola pegado' });
+    expect(screen.getByAltText('Foto lista para enviar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Escribe un mensaje')).toHaveValue('Hola pegado');
+  });
+  it('texto sin imagen no adjunta; imagen inválida muestra el mismo error que al elegir', () => {
+    render(<Composer onSend={vi.fn()} onSendPhoto={vi.fn()} onTyping={vi.fn()} />);
+    const input = screen.getByLabelText('Escribe un mensaje');
+    paste(input, { files: [], items: [], getData: () => 'solo texto' });
+    expect(screen.queryByAltText('Foto lista para enviar')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    paste(input, { files: [new File(['svg'], 'x.svg', { type: 'image/svg+xml' })], items: [], getData: () => '' });
+    expect(screen.getByRole('alert')).toHaveTextContent('JPEG, PNG o WebP');
+    expect(screen.queryByAltText('Foto lista para enviar')).toBeNull();
+  });
+  it('pegar imagen reemplaza el video seleccionado', () => {
+    render(<Composer onSend={vi.fn()} onSendPhoto={vi.fn()} onSendVideo={vi.fn()} onTyping={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Elegir video'),
+      { target: { files: [new File(['video'], 'c.mp4', { type: 'video/mp4' })] } });
+    paste(screen.getByLabelText('Escribe un mensaje'),
+      { files: [new File(['photo'], 'pegada.png', { type: 'image/png' })], items: [], getData: () => '' });
+    expect(screen.queryByLabelText('Video listo para enviar')).toBeNull();
+    expect(screen.getByAltText('Foto lista para enviar')).toBeInTheDocument();
+  });
+});
