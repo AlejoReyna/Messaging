@@ -20,7 +20,7 @@ export function ChatPanel({
   me, background = DEFAULT_BACKGROUND, partner, messages, pending, loading, loadingMore, hasMore, loadError,
   connected, partnerTyping, partnerOnline, readByPartner,
   notice, showSidebarToggle, onOpenSettings, onLoadMore, onReload,
-  onSend, onSendPhoto, onSendVideo, onSendAudio, onRetry, onDiscardPending, onTyping, onDeleteMessage, onClear, isAdmin, clearArmed,
+  onSend, onSendPhoto, onSendVideo, onSendAudio, onRetry, onDiscardPending, onTyping, onDeleteMessage, onEditMessage, onClear, isAdmin, clearArmed,
 }: {
   me: PublicUser;
   background?: ChatBackground;
@@ -48,6 +48,7 @@ export function ChatPanel({
   onDiscardPending: (id: string) => void;
   onTyping: (t: boolean) => void;
   onDeleteMessage: (id: string) => void;
+  onEditMessage?: (id: string, body: string) => Promise<void>;
   onClear: () => void;
   isAdmin: boolean;
   clearArmed: boolean;
@@ -223,17 +224,15 @@ export function ChatPanel({
               <WifiOff className="h-3.5 w-3.5" aria-hidden="true" /> Reconectando
             </span>
           )}
-          {isAdmin && (
-            <button
+          <button
               type="button"
               onClick={onClear}
               aria-label="Vaciar conversación para ambos"
-              title="Vaciar conversación (administrador)"
+              title="Vaciar conversación para ambos"
               className="inline-grid min-h-[44px] min-w-[44px] place-items-center rounded-full text-muted transition-all duration-200 hover:scale-105 hover:bg-surface-hover hover:text-ink active:scale-95"
             >
               <Flame className="h-5 w-5" aria-hidden="true" />
-            </button>
-          )}
+          </button>
           <button
             type="button"
             onClick={onOpenSettings}
@@ -336,6 +335,7 @@ export function ChatPanel({
                     read={readByPartner >= m.sequence}
                     isAdmin={isAdmin}
                     onDelete={onDeleteMessage}
+                    onEdit={onEditMessage}
                     onReply={(target) => setReplyTo({ message: target, author: authorOf(target.senderId) })}
                     replyAuthorName={m.replyTo ? authorOf(m.replyTo.senderId) : undefined}
                     onQuoteClick={jumpToOriginal}

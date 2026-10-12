@@ -130,7 +130,7 @@ describe("Notas de voz privadas (PostgreSQL y sockets reales)", () => {
     const response = messageOf((await send(admin, "Respuesta", voice.id)).json);
     const adminVoice = messageOf((await upload(admin)).json);
     assert.equal((await member.request("DELETE", `/api/messages/${adminVoice.id}`, { body: { conversationVersion: 1 } })).status, 403);
-    assert.equal((await member.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: 1 } })).status, 403);
+    assert.equal((await member.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: 1 }, csrf: false })).status, 403);
     assert.equal((await member.request("DELETE", `/api/messages/${voice.id}`, { body: { conversationVersion: 1 } })).status, 200);
     assert.equal((await member.request("GET", voice.audioUrl!)).status, 404);
     const history = (await admin.request("GET", "/api/messages")).json as { messages: Message[] };
@@ -140,7 +140,7 @@ describe("Notas de voz privadas (PostgreSQL y sockets reales)", () => {
     await reconcileDeletions(server.db, server.journalPath);
     assert.equal(await server.db.message.findUnique({ where: { id: voice.id } }), null);
     const version = (await server.db.conversation.findUniqueOrThrow({ where: { id: 1 } })).version;
-    assert.equal((await admin.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: version } })).status, 200);
+    assert.equal((await member.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: version } })).status, 200);
     assert.equal(await server.db.message.count(), 0);
     assert.equal((await admin.request("GET", adminVoice.audioUrl!)).status, 404);
     assert.equal((await upload(member, recording, randomUUID(), version)).status, 409);

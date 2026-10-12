@@ -147,7 +147,7 @@ describe("API auth, sesión y perfil (PostgreSQL real)", () => {
     assert.equal(out2.status, 204);
   });
 
-  it("miembro no puede borrar mensajes ajenos, vaciar ni cambiar roles", async () => {
+  it("miembro no puede borrar mensajes ajenos ni cambiar roles; vaciado requiere CSRF", async () => {
     const created = await admin.request("POST", "/api/messages", {
       body: { clientMessageId: randomUUID(), body: "Mensaje del administrador", conversationVersion: 1 },
     });
@@ -160,7 +160,7 @@ describe("API auth, sesión y perfil (PostgreSQL real)", () => {
     assert.equal((del.json as { error: { code: string } }).error.code, "FORBIDDEN");
 
     const clear = await member.request("DELETE", "/api/conversation/messages", {
-      body: { conversationVersion: 1 },
+      body: { conversationVersion: 1 }, csrf: false,
     });
     assert.equal(clear.status, 403);
 

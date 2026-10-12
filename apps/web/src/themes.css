@@ -285,8 +285,8 @@
   --theme-bubble-ink: #ffffff;
 }
 
-/* Pinkie Pie: rosas, lavanda y menta pastel, con texto de alto contraste. */
-[data-theme="pinkie-pie"] {
+/* Madoka: rosas, lavanda y menta pastel, con texto blanco en los globos. */
+[data-theme="madoka"] {
   color-scheme: light;
   --color-canvas: #fff1f8;
   --color-surface: #fffafd;
@@ -307,5 +307,5 @@
   --color-on-danger: #ffffff;
   --color-overlay: #643252;
   --theme-bubble: #f7b1d4;
-  --theme-bubble-ink: #61344f;
+  --theme-bubble-ink: #ffffff;
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const CONTRACT_VERSION = 7;
+export const CONTRACT_VERSION = 8;
 export const MAX_MESSAGE_LENGTH = 4000;
 export const MAX_CHAT_PHOTO_BYTES = 5 * 1024 * 1024;
 export const PHOTO_MESSAGE_BODY = '📷 Foto';
@@ -125,12 +125,23 @@ export const MessageSchema = z.strictObject({
     audioDurationSeconds: audioDuration.optional(),
   }).refine(validAttachment, 'Adjunto no válido: sólo uno y duración requerida para audio').optional(),
   createdAt: timestamp,
+  // Edición v8: sólo el autor puede cambiar el texto; null si nunca se editó.
+  // Opcional para compatibilidad con historiales anteriores al despliegue.
+  editedAt: timestamp.nullable().optional(),
 }).refine(validAttachment, 'Adjunto no válido: sólo uno y duración requerida para audio');
 export const SendMessageInputSchema = z.strictObject({
   clientMessageId: uuid,
   body: MessageBodySchema,
   conversationVersion: positiveInteger,
   replyToMessageId: uuid.optional(),
+});
+export const EditMessageInputSchema = z.strictObject({
+  body: MessageBodySchema,
+  conversationVersion: positiveInteger,
+});
+export const MessageEditedEventSchema = z.strictObject({
+  message: MessageSchema,
+  conversationVersion: positiveInteger,
 });
 export const MessageCreatedEventSchema = z.strictObject({ message: MessageSchema });
 export const MessagesQuerySchema = z.strictObject({
@@ -202,6 +213,8 @@ export type Conversation = z.infer<typeof ConversationSchema>;
 export type ConversationResponse = z.infer<typeof ConversationResponseSchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;
+export type EditMessageInput = z.infer<typeof EditMessageInputSchema>;
+export type MessageEditedEvent = z.infer<typeof MessageEditedEventSchema>;
 export type MessagesQuery = z.infer<typeof MessagesQuerySchema>;
 export type MessagesPage = z.infer<typeof MessagesPageSchema>;
 export type MarkReadInput = z.infer<typeof MarkReadInputSchema>;
@@ -234,6 +247,7 @@ export type ApiError = z.infer<typeof ApiErrorSchema>;
 
 export interface ServerToClientEvents {
   'message:created': (event: MessageCreatedEvent) => void;
+  'message:edited': (event: MessageEditedEvent) => void;
   'message:deleted': (event: MessageDeletedEvent) => void;
   'conversation:cleared': (event: ConversationClearedEvent) => void;
   'profile:updated': (event: UserResponse) => void;
@@ -247,6 +261,7 @@ export interface ClientToServerEvents {
 
 export const SERVER_EVENT_SCHEMAS = {
   'message:created': MessageCreatedEventSchema,
+  'message:edited': MessageEditedEventSchema,
   'message:deleted': MessageDeletedEventSchema,
   'conversation:cleared': ConversationClearedEventSchema,
   'profile:updated': UserResponseSchema,

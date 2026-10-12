@@ -7,7 +7,7 @@ import { ThemePicker } from './ThemePicker';
 import { FontPicker } from './FontPicker';
 import { ProfileDialog } from './ProfileDialog';
 import { BubbleColorPicker } from './BubbleColorPicker';
-import { DEFAULT_THEME, THEMES, themeForMode, useTheme } from '../lib/themes';
+import { DEFAULT_THEME, MEMBER_DEFAULT_THEME, THEMES, themeForMode, useTheme } from '../lib/themes';
 import { bubbleTextColor, rgbToHex, useBubbleColor } from '../lib/bubbles';
 import { DEFAULT_FONT, FONTS, useFont } from '../lib/fonts';
 
@@ -125,10 +125,23 @@ describe('vista previa del avatar', () => {
 });
 
 describe('personalización por cuenta', () => {
-  it('Nunito es la fuente inicial y siguen disponibles GitHub, Solarized y Pinkie Pie', () => {
+  it('sólo el miembro recibe Madoka una vez y luego conserva su nueva selección; migra el nombre anterior', () => {
+    window.localStorage.setItem('private-chat:theme:v2:member-one', 'github-dark');
+    window.localStorage.setItem('private-chat:theme:v2:admin-one', 'pinkie-pie');
+    const member = renderHook(() => useTheme('member-one', MEMBER_DEFAULT_THEME));
+    expect(member.result.current.theme).toBe('madoka');
+    act(() => member.result.current.chooseTheme('cocoa'));
+    member.unmount();
+    expect(renderHook(() => useTheme('member-one', MEMBER_DEFAULT_THEME)).result.current.theme).toBe('cocoa');
+    expect(renderHook(() => useTheme('admin-one')).result.current.theme).toBe('madoka');
+    expect(renderHook(() => useTheme('admin-two')).result.current.theme).toBe('original');
+    expect(THEMES.find((theme) => theme.id === 'madoka')?.name).toBe('Madoka');
+  });
+
+  it('Nunito es la fuente inicial y siguen disponibles GitHub, Solarized y Madoka', () => {
     expect(renderHook(() => useFont('new-account')).result.current.font).toBe('nunito');
     expect(THEMES.map((theme) => theme.id)).toEqual(expect.arrayContaining([
-      'github-light', 'github-dark', 'solarized-light', 'solarized-dark', 'pinkie-pie', 'gruvbox',
+      'github-light', 'github-dark', 'solarized-light', 'solarized-dark', 'madoka', 'gruvbox',
     ]));
     expect(themeForMode('github-light', true)).toBe('github-dark');
     expect(themeForMode('solarized-dark', false)).toBe('solarized-light');

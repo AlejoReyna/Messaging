@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 export const THEMES = [
   { id: 'original', name: 'Blanco original', mode: 'Claro' },
   { id: 'night', name: 'Nocturno · morado', mode: 'Oscuro' },
-  { id: 'pinkie-pie', name: 'Pinkie Pie', mode: 'Claro' },
+  { id: 'madoka', name: 'Madoka', mode: 'Claro' },
   { id: 'telegram-dark', name: 'Telegram Dark', mode: 'Oscuro' },
   { id: 'github-light', name: 'GitHub Light', mode: 'Claro' },
   { id: 'github-dark', name: 'GitHub Dark', mode: 'Oscuro' },
@@ -22,7 +22,7 @@ export const THEMES = [
 
 export type ThemeId = typeof THEMES[number]['id'];
 export const DEFAULT_THEME: ThemeId = 'original';
-export const MEMBER_DEFAULT_THEME: ThemeId = 'original';
+export const MEMBER_DEFAULT_THEME: ThemeId = 'madoka';
 
 export function isDarkTheme(theme: ThemeId) {
   return THEMES.find((option) => option.id === theme)?.mode === 'Oscuro';
@@ -45,13 +45,15 @@ function isTheme(value: string | null): value is ThemeId {
 
 export function useTheme(userId?: string, preferredDefault: ThemeId = DEFAULT_THEME) {
   const [theme, setTheme] = useState<ThemeId>(DEFAULT_THEME);
-  // Nueva versión: volver al blanco original una vez; conservar después la elección.
-  // La tipografía usa su clave anterior y no se reinicia.
-  const key = userId ? `private-chat:theme:v2:${userId}` : null;
+  // El miembro recibe Madoka una vez; después se recuerda su elección en v3.
+  // La cuenta administradora conserva sus preferencias v2.
+  const version = preferredDefault === MEMBER_DEFAULT_THEME ? 'v3' : 'v2';
+  const key = userId ? `private-chat:theme:${version}:${userId}` : null;
 
   useEffect(() => {
     let saved: string | null = null;
     try { if (key) saved = window.localStorage.getItem(key); } catch { /* navegador sin almacenamiento */ }
+    if (saved === 'pinkie-pie') saved = 'madoka';
     setTheme(isTheme(saved) ? saved : preferredDefault);
   }, [key, preferredDefault]);
 

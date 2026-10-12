@@ -8,7 +8,7 @@ import { ChatPanel } from './components/ChatPanel';
 import { ProfileDialog } from './components/ProfileDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { AvatarEditor } from './components/AvatarEditor';
-import { useTheme } from './lib/themes';
+import { DEFAULT_THEME, MEMBER_DEFAULT_THEME, useTheme } from './lib/themes';
 import { useFont } from './lib/fonts';
 import { useBubbleColor } from './lib/bubbles';
 import { useBackground } from './lib/background';
@@ -20,7 +20,7 @@ function Shell() {
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
   const closeAvatar = useCallback(() => setAvatarOpen(false), []);
   // Tema y tipografía guardados de la cuenta; se exponen en el diálogo de ajustes.
-  const { theme, chooseTheme } = useTheme(session.user?.id);
+  const { theme, chooseTheme } = useTheme(session.user?.id, session.user?.role === 'member' ? MEMBER_DEFAULT_THEME : DEFAULT_THEME);
   const { font, chooseFont } = useFont(session.user?.id);
   const { bubbleColor, chooseBubbleColor } = useBubbleColor(session.user?.id);
   const { background, saveBackground } = useBackground(session.user?.id);
@@ -167,8 +167,14 @@ function Shell() {
             if (!target || (!isAdmin && target.senderId !== me.id)) return;
             setDeleteTarget(id);
           }}
+          onEditMessage={async (id, body) => {
+            const target = chat.messages.find((message) => message.id === id);
+            // Sólo mensajes propios: los recibidos no ofrecen edición en la UI,
+            // y el servidor rechaza 403 cualquier intento ajeno.
+            if (!target || target.senderId !== me.id) return;
+            await chat.editMessage(id, body);
+          }}
           onClear={() => {
-            if (!isAdmin) return;
             setClearOpen(true);
           }}
           isAdmin={isAdmin}
@@ -196,7 +202,7 @@ function Shell() {
         <ConfirmDialog
           title="¿Estás seguro?"
           body="Esto borrará toda la conversación."
-          confirmLabel="Aceptar"
+          confirmLabel="Confirmar"
           tone="default"
           busy={actionBusy}
           onCancel={() => setClearOpen(false)}

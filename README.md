@@ -1,6 +1,6 @@
 # Private Chat
 
-Chat web privado para exactamente dos cuentas: administrador y miembro, sin registro público, una conversación, PostgreSQL, perfiles editables y borrado de mensajes propios para ambos; el administrador también puede borrar mensajes ajenos y vaciar el historial. Interfaz móvil/desktop inspirada en `docs/reference.png`.
+Chat web privado para exactamente dos cuentas: administrador y miembro, sin registro público, una conversación, PostgreSQL, perfiles editables y borrado de mensajes propios para ambos; el administrador también puede borrar mensajes ajenos individualmente. Ambas cuentas pueden vaciar el historial tras confirmar con el fueguito. Interfaz móvil/desktop inspirada en `docs/reference.png`.
 
 **Estado:** frontend y backend integrados y funcionando contra PostgreSQL local, incluido el rol restringido y WebSocket real. La conversación ocupa toda la pantalla; escritorio tiene una barra lateral de iconos de 72 px. El despliegue y la ejecución Docker/PostgreSQL 18 siguen pendientes. El registro de pruebas está en [docs/STATUS.md](docs/STATUS.md).
 

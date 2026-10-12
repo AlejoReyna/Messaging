@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import type { Message } from '@private-chat/contracts';
 import { Composer } from './Composer';
 import { MessageBubble, PendingBubble } from './MessageBubble';
-import { CHIIKAWA_STICKERS } from '../lib/stickers';
+import { CHIIKAWA_PACKS, CHIIKAWA_STICKERS, getMessageSticker } from '../lib/stickers';
 
 afterEach(() => cleanup());
 const sticker = CHIIKAWA_STICKERS[0]!;
@@ -20,13 +20,33 @@ function choose() {
 }
 
 describe('stickers de Chiikawa', () => {
+  it('abre el pack prioritario, permite cambiar de pack y conserva los marcadores antiguos', () => {
+    render(<Composer onSend={vi.fn()} onTyping={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Stickers de Chiikawa' }));
+    expect(screen.getByRole('button', { name: 'Pack Chiikawa ちいかわ' })).toHaveAttribute('aria-pressed', 'true');
+    for (const pack of CHIIKAWA_PACKS) {
+      fireEvent.click(screen.getByRole('button', { name: `Pack ${pack.label}` }));
+      const picker = screen.getByRole('region', { name: 'Stickers de Chiikawa' });
+      expect(within(picker).getAllByRole('button', { name: /^Elegir / })).toHaveLength(pack.stickers.length);
+      expect(screen.getByRole('button', { name: `Elegir ${pack.stickers[0]!.label}` })).toBeInTheDocument();
+    }
+    const legacy = getMessageSticker('[sticker:chiikawa:455656342]');
+    expect(legacy?.id).toBe('455656342');
+    expect(getMessageSticker('[sticker:chiikawa:455656381]')?.id).toBe('455656381');
+    expect(getMessageSticker('Texto [sticker:chiikawa:455656342]')).toBeUndefined();
+    // Volver a abrir comienza en el pack solicitado, aunque antes se eligiera otro.
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar stickers' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stickers de Chiikawa' }));
+    expect(screen.getByRole('button', { name: 'Pack Chiikawa ちいかわ' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('permite revisar y cancelar sin enviar, cerrar con Escape y restaurar el foco', () => {
     const onSend = vi.fn();
     render(<Composer onSend={onSend} onTyping={vi.fn()} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Mi borrador' } });
     fireEvent.click(screen.getByRole('button', { name: 'Stickers de Chiikawa' }));
     const picker = screen.getByRole('region', { name: 'Stickers de Chiikawa' });
-    expect(within(picker).getAllByRole('button', { name: /^Elegir / })).toHaveLength(40);
+    expect(within(picker).getAllByRole('button', { name: /^Elegir / })).toHaveLength(24);
     expect(within(picker).getAllByRole('button', { name: /^Elegir / })[0]).toHaveFocus();
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(screen.queryByRole('region')).not.toBeInTheDocument();

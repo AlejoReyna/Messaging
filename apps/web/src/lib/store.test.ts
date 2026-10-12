@@ -3,6 +3,7 @@ import type { Message } from '@private-chat/contracts';
 import {
   applyCleared,
   applyDeleted,
+  applyEdited,
   canRetry,
   dedupeCreated,
   dropPendingFor,
@@ -82,6 +83,21 @@ describe('versiones y vaciado', () => {
     const r = applyDeleted(base, { messageId: 'a', conversationVersion: 4 }, 3);
     expect(r.messages.map((m) => m.id)).toEqual(['b']);
     expect(r.version).toBe(4);
+  });
+
+  it('applyEdited reemplaza el texto y sube la versión (sólo propios)', () => {
+    const base = [msg({ sequence: 1, id: 'a', body: 'original' }), msg({ sequence: 2, id: 'b' })];
+    const edited = { ...base[0]!, body: 'editado', editedAt: '2026-01-01T12:05:00.000Z' };
+    const r = applyEdited(base, { message: edited, conversationVersion: 4 }, 3);
+    expect(r.messages.find((m) => m.id === 'a')?.body).toBe('editado');
+    expect(r.messages.map((m) => m.sequence)).toEqual([1, 2]);
+    expect(r.version).toBe(4);
+  });
+
+  it('mergeMessages prefiere la entrada nueva (ediciones de la DB)', () => {
+    const base = [msg({ sequence: 1, id: 'a', body: 'viejo' })];
+    const incoming = [msg({ sequence: 1, id: 'a', body: 'nuevo' })];
+    expect(mergeMessages(base, incoming)[0]?.body).toBe('nuevo');
   });
 
   it('applyCleared limpia historial y DESCARTA pendientes (no reenvía, no resucita)', () => {

@@ -331,25 +331,27 @@ body {
   .voice-panel .flex { gap: 0.5rem; }
 }
 
-[data-theme="pinkie-pie"] .chat-panel[data-background="plain"],
-[data-theme="pinkie-pie"] .theme-preview {
+[data-theme="madoka"] .chat-panel[data-background="plain"],
+[data-theme="madoka"] .theme-preview {
   background: linear-gradient(135deg, #fff1f8 0%, #f2ecff 58%, #e5f8f5 100%);
 }
-[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) {
+[data-theme="madoka"] .own-bubble,
+[data-theme="madoka"] .message-bubble:not([data-sticker="true"]) { color: #ffffff; }
+[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) {
   background: var(--theme-bubble);
   border-color: var(--theme-bubble);
   color: var(--theme-bubble-ink);
 }
-[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) > span[aria-hidden="true"] {
+[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) > span[aria-hidden="true"] {
   border-top-color: var(--theme-bubble);
 }
-[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-meta,
-[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-trigger,
-[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-quote > span {
+[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-meta,
+[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-trigger,
+[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-quote > span {
   color: inherit;
 }
-[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-quote { border-color: currentColor; }
-[data-theme="pinkie-pie"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-gutter { background: transparent; }
+[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-quote { border-color: currentColor; }
+[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-gutter { background: transparent; }
 .confirm-overlay {
   /* Prefijo primero: la minificación debe conservar la propiedad estándar. */
   -webkit-backdrop-filter: blur(10px);

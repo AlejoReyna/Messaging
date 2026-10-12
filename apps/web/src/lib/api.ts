@@ -24,9 +24,11 @@ import {
   type ChangePinInput,
   type ConversationResponse,
   type DeleteInput,
+  type EditMessageInput,
   type LoginInput,
   type MarkReadInput,
   type Message,
+  type MessageEditedEvent,
   type MessagesPage,
   type PinLoginInput,
   type PinSetupInput,
@@ -374,6 +376,26 @@ export async function deleteMessage(messageId: string, input: DeleteInput, csrfT
     throw toApiFailure(res.status, 'INTERNAL_ERROR', 'Respuesta no válida del servidor.');
   }
   return { messageId: id, conversationVersion: version };
+}
+
+export async function editMessage(messageId: string, input: EditMessageInput, csrfToken: string): Promise<MessageEditedEvent> {
+  const res = await fetch(API_ROUTES.message(messageId), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: headers(csrfToken, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await parseFailure(res, {
+    MESSAGE_DELETED: 'Ese mensaje fue eliminado y ya no se puede editar.',
+    MESSAGE_NOT_FOUND: 'Ese mensaje ya no existe.',
+  });
+  const data: unknown = await res.json();
+  const message = MessageSchema.safeParse((data as { message?: unknown })?.message);
+  const version = (data as { conversationVersion?: unknown }).conversationVersion;
+  if (!message.success || typeof version !== 'number') {
+    throw toApiFailure(res.status, 'INTERNAL_ERROR', 'Respuesta no válida del servidor.');
+  }
+  return { message: message.data, conversationVersion: version };
 }
 
 export async function clearConversation(input: DeleteInput, csrfToken: string): Promise<{ conversationVersion: number }> {

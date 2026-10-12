@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>private-chat — solo somos dos</title>
+  <meta name="description" content="Chat privado para dos personas. Sin grupos, sin ruido." />
+  <style>
+    @font-face {
+      font-family: "Patrick Hand";
+      src: url("../apps/web/src/assets/fonts/PatrickHand-Regular.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+
+    :root {
+      --ink: #242624;
+      --muted: #636761;
+      --line: #deded9;
+      --surface: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      background: var(--surface);
+      color: var(--ink);
+      font-family: "Patrick Hand", "Segoe Print", "Bradley Hand", cursive;
+      -webkit-font-smoothing: antialiased;
+      display: grid;
+      place-items: center;
+      min-height: 100dvh;
+      padding: 2rem 1.5rem;
+    }
+
+    main {
+      text-align: center;
+      max-width: 42rem;
+      width: 100%;
+    }
+
+    h1.hero {
+      margin: 0;
+      font-weight: 400;
+      font-size: clamp(2.6rem, 7vw, 4.5rem);
+      line-height: 1.08;
+      letter-spacing: 0.01em;
+      text-wrap: balance;
+    }
+
+    h1.hero .word {
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    h1.hero .ch {
+      display: inline-block;
+      opacity: 0;
+      color: transparent;
+      -webkit-text-stroke: 1.1px var(--ink);
+      transform: translateY(0.12em) rotate(-3deg) scale(0.96);
+      filter: blur(3px);
+      animation: draw-char 520ms cubic-bezier(0.2, 0, 0, 1) forwards;
+    }
+
+    @keyframes draw-char {
+      0% {
+        opacity: 0;
+        color: transparent;
+        -webkit-text-stroke: 1.1px var(--ink);
+        transform: translateY(0.12em) rotate(-3deg) scale(0.96);
+        filter: blur(3px);
+      }
+      55% {
+        opacity: 1;
+        color: transparent;
+        -webkit-text-stroke: 1.3px var(--ink);
+        transform: translateY(0) rotate(0.5deg) scale(1.01);
+        filter: blur(0);
+      }
+      100% {
+        opacity: 1;
+        color: var(--ink);
+        -webkit-text-stroke: 0px transparent;
+        transform: translateY(0) rotate(0deg) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    .scribble {
+      display: block;
+      width: min(320px, 70vw);
+      height: 22px;
+      margin: 0.4rem auto 0;
+      overflow: visible;
+    }
+
+    .scribble path {
+      fill: none;
+      stroke: var(--ink);
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 600;
+      stroke-dashoffset: 600;
+    }
+
+    .scribble.draw path {
+      animation: underline 700ms ease forwards;
+    }
+
+    @keyframes underline {
+      to { stroke-dashoffset: 0; }
+    }
+
+    .after {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 600ms ease, transform 600ms ease;
+      pointer-events: none;
+    }
+
+    .after.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .sub {
+      margin: 1.75rem 0 0;
+      font-size: clamp(1.1rem, 2.6vw, 1.35rem);
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .brew {
+      margin: 1.5rem auto 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      max-width: 100%;
+      border: 1.5px solid var(--line);
+      border-radius: 14px;
+      padding: 0.7rem 0.7rem 0.7rem 1rem;
+      background: #fff;
+      font-size: 1.05rem;
+    }
+
+    .brew code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+
+    .brew code .dollar { color: var(--muted); }
+
+    .brew button {
+      font: inherit;
+      font-size: 0.95rem;
+      border: 1.5px solid var(--ink);
+      background: var(--ink);
+      color: #fff;
+      border-radius: 10px;
+      padding: 0.35rem 0.8rem;
+      cursor: pointer;
+      transition: transform 150ms ease, opacity 150ms ease;
+    }
+
+    .brew button:hover { transform: translateY(-1px); }
+    .brew button:active { transform: translateY(0) scale(0.98); }
+
+    .wip {
+      margin: 0.9rem 0 0;
+      font-size: 1rem;
+      color: var(--muted);
+    }
+
+    .wip-pill {
+      display: inline-block;
+      border: 1px dashed var(--muted);
+      border-radius: 999px;
+      padding: 0.05rem 0.6rem;
+      margin-right: 0.4rem;
+      font-size: 0.9rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      h1.hero .ch {
+        animation-duration: 0.01ms;
+        animation-delay: 0ms !important;
+      }
+      .scribble path { stroke-dashoffset: 0; }
+      .after { transition-duration: 0.01ms; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 class="hero" id="hero" aria-label="solo somos dos, sin metiches.">solo somos dos, sin metiches.</h1>
+    <svg class="scribble" id="scribble" viewBox="0 0 320 22" aria-hidden="true" focusable="false">
+      <path d="M8 14 C 80 6, 180 6, 312 12" />
+    </svg>
+
+    <div class="after" id="after">
+      <p class="sub">Chat privado para dos personas. Sin grupos, sin ruido, sin tía reenviando cadenas.</p>
+      <div class="brew" role="group" aria-label="Comando de instalación">
+        <code><span class="dollar">$</span> brew install private-chat</code>
+        <button type="button" id="copy">copiar</button>
+      </div>
+      <p class="wip"><span class="wip-pill">en camino</span>La fórmula de brew todavía se está cocinando.</p>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var hero = document.getElementById("hero");
+      var text = hero.textContent;
+      hero.textContent = "";
+      var CHAR_MS = 65;
+      var delay = 350;
+
+      text.split(" ").forEach(function (word, wi, words) {
+        var w = document.createElement("span");
+        w.className = "word";
+        w.setAttribute("aria-hidden", "true");
+        word.split("").forEach(function (c) {
+          var s = document.createElement("span");
+          s.className = "ch";
+          s.textContent = c;
+          s.style.animationDelay = delay + "ms";
+          delay += CHAR_MS;
+          w.appendChild(s);
+        });
+        hero.appendChild(w);
+        if (wi < words.length - 1) hero.appendChild(document.createTextNode(" "));
+      });
+
+      var total = delay + 450;
+      var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduced) total = 50;
+
+      setTimeout(function () {
+        document.getElementById("scribble").classList.add("draw");
+      }, Math.max(0, total - 500));
+
+      setTimeout(function () {
+        document.getElementById("after").classList.add("show");
+      }, total);
+
+      var btn = document.getElementById("copy");
+      btn.addEventListener("click", function () {
+        var cmd = "brew install private-chat";
+        function done() {
+          btn.textContent = "copiado";
+          setTimeout(function () { btn.textContent = "copiar"; }, 1400);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(cmd).then(done, done);
+        } else {
+          var ta = document.createElement("textarea");
+          ta.value = cmd;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand("copy"); } catch (e) {}
+          document.body.removeChild(ta);
+          done();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

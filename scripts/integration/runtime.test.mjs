@@ -8,7 +8,7 @@ import sharp from 'sharp';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { io } from 'socket.io-client';
-import { SessionResponseSchema, MessageCreatedEventSchema, MessageDeletedEventSchema, UserResponseSchema } from '@private-chat/contracts';
+import { SessionResponseSchema, MessageCreatedEventSchema, MessageDeletedEventSchema, ConversationClearedEventSchema, UserResponseSchema } from '@private-chat/contracts';
 import { startTestServer, TestClient } from '../../apps/api/test/integration/helpers.ts';
 import { buildApp } from '../../apps/api/src/http/app.ts';
 import { RealtimeHub } from '../../apps/api/src/realtime.ts';
@@ -129,8 +129,8 @@ test('dos usuarios con rol runtime: permisos SQL, API real y Socket.IO WebSocket
     assert.equal((await runtimeDb.deletionAudit.findFirstOrThrow({ where: { messageId: ownMessage.id } })).actorId, server.users.memberId);
     const noResurrection = await member.request('POST', '/api/messages', { body: { clientMessageId: ownKey, body: ownMessage.body, conversationVersion: 3 } });
     assert.equal(noResurrection.status, 410);
-    const clearForbidden = await member.request('DELETE', '/api/conversation/messages', { body: { conversationVersion: 3 } });
-    assert.equal(clearForbidden.status, 403);
+    const clearNoCsrf = await member.request('DELETE', '/api/conversation/messages', { body: { conversationVersion: 3 }, csrf: false });
+    assert.equal(clearNoCsrf.status, 403);
     // Foto con el mismo rol SQL restringido de producción, sin archivos públicos.
     const photoBytes = await sharp({ create: { width: 12, height: 8, channels: 3, background: '#bb8f72' } }).png().toBuffer();
     const photoForm = new FormData();
@@ -195,6 +195,22 @@ test('dos usuarios con rol runtime: permisos SQL, API real y Socket.IO WebSocket
     assert.equal((await runtimeDb.message.findUnique({ where: { id: voice.id } })), null);
     const afterVoiceDelete = await admin.request('GET', '/api/messages');
     assert.equal(afterVoiceDelete.json.messages[0].replyTo, undefined);
+    // Ambas cuentas reciben el vaciado autorizado del miembro, con rol SQL runtime.
+    const clearVersion = afterVoiceDelete.json.conversationVersion;
+    const adminCleared = event(adminSocket, 'conversation:cleared');
+    const memberCleared = event(memberSocket, 'conversation:cleared');
+    const cleared = await member.request('DELETE', '/api/conversation/messages', { body: { conversationVersion: clearVersion } });
+    assert.equal(cleared.status, 200);
+    const expectedClear = { conversationVersion: clearVersion + 1 };
+    assert.deepEqual(ConversationClearedEventSchema.parse(cleared.json), expectedClear);
+    assert.deepEqual(ConversationClearedEventSchema.parse(await adminCleared), expectedClear);
+    assert.deepEqual(ConversationClearedEventSchema.parse(await memberCleared), expectedClear);
+    for (const client of [admin, member]) {
+      const history = await client.request('GET', '/api/messages');
+      assert.deepEqual(history.json.messages, []);
+      assert.equal(history.json.conversationVersion, clearVersion + 1);
+    }
+    assert.equal((await runtimeDb.deletionAudit.findFirstOrThrow({ where: { action: 'conversation_cleared' } })).actorId, server.users.memberId);
     // La autorización se consulta de nuevo al recibir una acción por socket.
     await server.db.session.updateMany({ where: { userId: server.users.memberId }, data: { revokedAt: new Date() } });
     const disconnected = event(memberSocket, 'disconnect');

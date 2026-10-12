@@ -3,6 +3,7 @@ import { PHOTO_MESSAGE_BODY, VIDEO_MESSAGE_BODY, AUDIO_MESSAGE_BODY, type Messag
 import {
   clearConversation,
   deleteMessage as apiDeleteMessage,
+  editMessage as apiEditMessage,
   getConversation,
   getMessages,
   markRead as apiMarkRead,
@@ -15,6 +16,7 @@ import {
 import {
   applyCleared,
   applyDeleted,
+  applyEdited,
   canRetry,
   dedupeCreated,
   dropPendingFor,
@@ -55,6 +57,7 @@ interface ChatApi {
   loadMore: () => Promise<void>;
   reload: () => Promise<void>;
   removeMessage: (id: string) => Promise<void>;
+  editMessage: (id: string, body: string) => Promise<void>;
   clearAll: () => Promise<void>;
   setTyping: (isTyping: boolean) => void;
   notice: string | null;
@@ -289,6 +292,26 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
       setVersion(e.conversationVersion);
       versionRef.current = e.conversationVersion;
     },
+    onEdited: (e: { message: Message; conversationVersion: number }) => {
+      if (!loadedRef.current) {
+        pendingVersionBumpRef.current = Math.max(pendingVersionBumpRef.current ?? 0, e.conversationVersion);
+        return;
+      }
+      const known = versionRef.current;
+      if (e.conversationVersion <= known) {
+        // Eco propio o duplicado: aplicar contenido sin mover versión.
+        setMessages((prev) => applyEdited(prev, e, known).messages);
+        return;
+      }
+      if (e.conversationVersion === known + 1) {
+        setMessages((prev) => applyEdited(prev, e, known).messages);
+        setVersion(e.conversationVersion);
+        versionRef.current = e.conversationVersion;
+        return;
+      }
+      // Hueco (se perdió un borrado/vaciado intermedio): recargar todo.
+      void fullReload().catch(() => setNotice('La conversación cambió. Recarga para verla actualizada.'));
+    },
     onCleared: (e: { conversationVersion: number }) => {
       if (!loadedRef.current) {
         pendingVersionBumpRef.current = Math.max(pendingVersionBumpRef.current ?? 0, e.conversationVersion);
@@ -474,6 +497,28 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     }
   }, [csrfToken, fullReload, fail]);
 
+  const editMessage = useCallback(async (id: string, body: string) => {
+    const trimmed = body.trim();
+    if (!trimmed || trimmed.length > 4000) {
+      throw new Error('El mensaje debe tener entre 1 y 4000 caracteres.');
+    }
+    try {
+      const r = await apiEditMessage(id, { body: trimmed, conversationVersion: versionRef.current }, csrfToken);
+      setMessages((prev) => applyEdited(prev, r, versionRef.current).messages);
+      setVersion(r.conversationVersion);
+      versionRef.current = r.conversationVersion;
+    } catch (e) {
+      const f = e as ApiFailure;
+      if (f?.code === 'CONVERSATION_CHANGED') {
+        await fullReload();
+        setNotice('La conversación cambió. Se recargó el historial.');
+        return;
+      }
+      setNotice(fail(e, 'No se pudo editar el mensaje.'));
+      throw e;
+    }
+  }, [csrfToken, fullReload, fail]);
+
   const clearAll = useCallback(async () => {
     try {
       const r = await clearConversation({ conversationVersion: versionRef.current }, csrfToken);
@@ -530,6 +575,6 @@ export function useChat(me: PublicUser | null, csrfToken: string, sessionEpoch: 
     loading, loadingMore, hasMore, loadError, connected,
     partnerTyping, partnerOnline, readByPartner, myRead,
     send, sendPhoto, sendVideo, sendAudio, retry, discardPending, loadMore, reload,
-    removeMessage, clearAll, setTyping, notice,
+    removeMessage, editMessage, clearAll, setTyping, notice,
   };
 }

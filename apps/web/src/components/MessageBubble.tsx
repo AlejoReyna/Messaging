@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CheckCheck, ChevronDown, Clock3, Reply, TriangleAlert, Trash2 } from 'lucide-react';
-import { PHOTO_MESSAGE_BODY, VIDEO_MESSAGE_BODY, AUDIO_MESSAGE_BODY, type Message } from '@private-chat/contracts';
+import { Check, CheckCheck, ChevronDown, Clock3, Pencil, Reply, TriangleAlert, Trash2 } from 'lucide-react';
+import { MAX_MESSAGE_LENGTH, PHOTO_MESSAGE_BODY, VIDEO_MESSAGE_BODY, AUDIO_MESSAGE_BODY, type Message } from '@private-chat/contracts';
 import { MessagePhoto, PendingPhoto } from './MessagePhoto';
 import { MessageVideo, PendingVideo } from './MessageVideo';
 import { MessageAudio, PendingAudio } from './MessageAudio';
@@ -27,11 +27,12 @@ function QuoteBlock({ author, snippet, messageId, onQuoteClick }: {
 }
 
 /** Hora + checks al estilo WhatsApp: al final del texto, abajo a la derecha. */
-function MetaInline({ createdAt, mine, read, animate, light = false }: {
+function MetaInline({ createdAt, mine, read, animate, edited = false, light = false }: {
   createdAt: string;
   mine: boolean;
   read: boolean;
   animate?: boolean;
+  edited?: boolean;
   light?: boolean;
 }) {
   const time = formatTime(createdAt);
@@ -40,6 +41,7 @@ function MetaInline({ createdAt, mine, read, animate, light = false }: {
     <span className={`message-meta ml-2 inline-flex translate-y-[2px] select-none items-center gap-1 whitespace-nowrap align-middle text-[12px] font-normal leading-none ${
       light ? 'text-white/90' : 'text-muted'
     }`}>
+      {edited && <span className="italic">editado</span>}
       <time dateTime={createdAt} title={fullDate(createdAt)}>{time}</time>
       {mine && (
         read
@@ -54,13 +56,14 @@ const LONG_PRESS_MS = 550;
 const SWIPE_REPLY_DX = 48;
 
 export function MessageBubble({
-  message, mine, read, isAdmin, onDelete, onReply, replyAuthorName, onQuoteClick, animate = false,
+  message, mine, read, isAdmin, onDelete, onEdit, onReply, replyAuthorName, onQuoteClick, animate = false,
 }: {
   message: Message;
   mine: boolean;
   read: boolean;
   isAdmin: boolean;
   onDelete: (id: string) => void;
+  onEdit?: (id: string, body: string) => Promise<void>;
   onReply: (message: Message) => void;
   replyAuthorName?: string;
   onQuoteClick?: (messageId: string) => void;
@@ -68,6 +71,10 @@ export function MessageBubble({
   animate?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(message.body);
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<number | null>(null);
   const touchOrigin = useRef<{ x: number; y: number } | null>(null);
@@ -78,7 +85,16 @@ export function MessageBubble({
   const sticker = message.photoUrl || message.videoUrl || message.audioUrl ? undefined : getMessageSticker(message.body);
   const hasPhoto = Boolean(message.photoUrl || message.videoUrl || message.audioUrl);
   const hasCaption = hasPhoto && message.body !== (message.audioUrl ? AUDIO_MESSAGE_BODY : message.videoUrl ? VIDEO_MESSAGE_BODY : PHOTO_MESSAGE_BODY);
+  // Edición v8: sólo mensajes propios de texto (sin foto/video/audio ni sticker).
+  const canEdit = mine && !hasPhoto && !sticker && typeof onEdit === 'function';
+  const edited = Boolean(message.editedAt);
   const tickCls = animate ? 'tick-pop items-center gap-0.5 font-medium' : 'inline-flex items-center gap-0.5 font-medium';
+
+  // Si el mensaje cambia por socket (edición remota) y no estamos editando,
+  // mantener el borrador sincronizado para la próxima edición.
+  useEffect(() => {
+    if (!editing) setDraft(message.body);
+  }, [message.body, editing]);
 
   function clearLongPress() {
     if (longPressTimer.current !== null) {
@@ -163,6 +179,38 @@ export function MessageBubble({
     onDelete(message.id);
   }
 
+  function handleStartEdit() {
+    setMenuOpen(false);
+    setDraft(message.body);
+    setEditError(null);
+    setEditing(true);
+  }
+
+  function handleCancelEdit() {
+    setEditing(false);
+    setDraft(message.body);
+    setEditError(null);
+  }
+
+  async function handleSaveEdit() {
+    const next = draft.trim();
+    if (!next || next.length > MAX_MESSAGE_LENGTH || saving) return;
+    if (next === message.body) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    setEditError(null);
+    try {
+      await onEdit?.(message.id, next);
+      setEditing(false);
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : 'No se pudo editar el mensaje.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const bubbleBg = sticker
     ? 'border-transparent bg-transparent shadow-none'
     : hasPhoto
@@ -223,7 +271,7 @@ export function MessageBubble({
           </button>
         </span>
 
-        {/* Menú estilo WhatsApp: Responder / Borrar para ambos. */}
+        {/* Menú estilo WhatsApp: Responder / Editar / Borrar para ambos. */}
         {menuOpen && (
           <div
             role="menu"
@@ -240,6 +288,18 @@ export function MessageBubble({
               <Reply className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
               Responder
             </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={handleStartEdit}
+                aria-label={`Editar mensaje enviado ${timeLabel}`}
+                title="Editar"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[17px] text-ink transition hover:bg-surface-hover active:bg-surface-hover"
+              >
+                <Pencil className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+                Editar
+              </button>
+            )}
             {canDelete && (
               <button
                 type="button"
@@ -287,11 +347,54 @@ export function MessageBubble({
             </div>
           </div>
         ) : (!hasPhoto || hasCaption) && (
+          editing ? (
+            <form
+              aria-label={`Editar mensaje enviado ${timeLabel}`}
+              className="px-0.5"
+              onSubmit={(e) => { e.preventDefault(); void handleSaveEdit(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') { e.preventDefault(); handleCancelEdit(); }
+              }}
+            >
+              <label htmlFor={`edit-${message.id}`} className="sr-only">Editar mensaje</label>
+              <textarea
+                id={`edit-${message.id}`}
+                value={draft}
+                autoFocus
+                rows={3}
+                maxLength={MAX_MESSAGE_LENGTH + 100}
+                disabled={saving}
+                onChange={(e) => setDraft(e.target.value)}
+                className="min-h-[72px] w-full resize-y rounded-xl border border-line bg-surface px-3 py-2 text-[16px] text-ink focus:border-accent focus:outline-none disabled:opacity-60"
+              />
+              {editError && <p role="alert" className="mt-1 text-[14px] text-danger">{editError}</p>}
+              <p className="mt-1 text-[12px] text-muted">{draft.trim().length}/{MAX_MESSAGE_LENGTH}</p>
+              <div className="mt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  disabled={saving}
+                  className="min-h-[36px] rounded-full bg-surface-hover px-4 text-[15px] font-semibold transition hover:bg-black/10 active:scale-95 disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || !draft.trim() || draft.trim().length > MAX_MESSAGE_LENGTH}
+                  aria-label="Guardar cambios del mensaje"
+                  className="min-h-[36px] rounded-full bg-accent px-4 text-[15px] font-bold text-on-accent transition hover:brightness-110 active:scale-95 disabled:opacity-60"
+                >
+                  {saving ? 'Guardando…' : 'Guardar'}
+                </button>
+              </div>
+            </form>
+          ) : (
           // En fotos con pie, el bubble es p-1.5 sin reserva: el pr-8 del pie evita que el chevron lo tape.
-          <p className={`whitespace-pre-wrap break-words px-0.5${hasPhoto ? ' pr-8' : ''}`} lang="es">{message.body}<MetaInline createdAt={message.createdAt} mine={mine} read={read} animate={animate} /></p>
+          <p className={`whitespace-pre-wrap break-words px-0.5${hasPhoto ? ' pr-8' : ''}`} lang="es">{message.body}<MetaInline createdAt={message.createdAt} mine={mine} read={read} animate={animate} edited={edited} /></p>
+          )
         )}
         {(message.videoUrl || message.audioUrl) && !hasCaption && <div className="mt-1 flex justify-end pb-1"><MetaInline
-          createdAt={message.createdAt} mine={mine} read={read} animate={animate} /></div>}
+          createdAt={message.createdAt} mine={mine} read={read} animate={animate} edited={edited} /></div>}
       </div>
     </div>
   );

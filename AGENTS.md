@@ -1,6 +1,6 @@
 # Private Chat — coordinación de tres modelos
 
-Objetivo autorizado: chat web privado para exactamente dos cuentas precreadas, una conversación, contraseñas individuales, PostgreSQL, nombres y fotos editables, borrado individual de mensajes propios para ambos y borrado de cualquier mensaje/vaciado exclusivo del administrador, UI responsive inspirada en `docs/reference.png` y despliegue en un VPS de Atlantic.net.
+Objetivo autorizado: chat web privado para exactamente dos cuentas precreadas, una conversación, contraseñas individuales, PostgreSQL, nombres y fotos editables, borrado individual de mensajes propios para ambos, borrado individual de mensajes ajenos exclusivo del administrador y vaciado con confirmación disponible para ambas cuentas (autorizado por el usuario el 2026-10-12), UI responsive inspirada en `docs/reference.png` y despliegue en un VPS de Atlantic.net.
 
 Lee `docs/CONTRACT.md` y `packages/contracts/src/index.ts` antes de implementar. Son la fuente de verdad; no inventes endpoints ni cambies DTO sin coordinación.
 

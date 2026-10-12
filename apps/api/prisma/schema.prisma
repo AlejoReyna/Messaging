@@ -81,6 +81,7 @@ model Message {
   audioDurationSeconds Float?   @map("audio_duration_seconds")
   replyToMessageId String?     @map("reply_to_message_id") @db.Text
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  editedAt        DateTime?    @map("edited_at") @db.Timestamptz(6)
 
   @@unique([senderId, clientMessageId])
   @@unique([conversationId, sequence])

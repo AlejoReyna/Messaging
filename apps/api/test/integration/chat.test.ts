@@ -249,7 +249,7 @@ describe("API chat (PostgreSQL real)", () => {
     assert.equal(await versionOf(), version + 1);
   });
 
-  it("rechaza borrados ajenos y vaciado del miembro sin journal ni cambios de datos", async () => {
+  it("rechaza borrados ajenos y vaciado sin CSRF sin journal ni cambios de datos", async () => {
     const { version } = await cleanSlate();
     const own = await send(member, "propio", version);
     const ownId = (own.json as { message: { id: string } }).message.id;
@@ -258,8 +258,12 @@ describe("API chat (PostgreSQL real)", () => {
     const forbidden = await member.request("DELETE", `/api/messages/${otherId}`, { body: { conversationVersion: version } });
     assert.equal(forbidden.status, 403);
     assert.equal((forbidden.json as { error: { code: string } }).error.code, "FORBIDDEN");
-    const clear = await member.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: version } });
+    const clear = await member.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: version }, csrf: false });
     assert.equal(clear.status, 403);
+    const wrongOrigin = await member.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: version }, origin: "https://other.example.invalid" });
+    assert.equal(wrongOrigin.status, 403);
+    const staleClear = await member.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: version + 1 } });
+    assert.equal(staleClear.status, 409);
     const stale = await member.request("DELETE", `/api/messages/${ownId}`, { body: { conversationVersion: version + 1 } });
     assert.equal(stale.status, 409);
     const missing = await member.request("DELETE", `/api/messages/${randomUUID()}`, { body: { conversationVersion: version } });
@@ -268,6 +272,7 @@ describe("API chat (PostgreSQL real)", () => {
     assert.equal(noCsrf.status, 403);
     const anon = new TestClient(server.baseUrl);
     await anon.session();
+    assert.equal((await anon.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: version } })).status, 401);
     assert.equal((await anon.request("DELETE", `/api/messages/${ownId}`, { body: { conversationVersion: version } })).status, 401);
     await reconcileDeletions(server.db, server.journalPath);
     assert.equal(readJournal(server.journalPath).intents.length, 0);
@@ -289,11 +294,12 @@ describe("API chat (PostgreSQL real)", () => {
     assert.equal(readJournal(server.journalPath).intents.length, 1);
   });
 
-  it("vaciado conserva lastSequence y bloquea reintentos viejos", async () => {
+  for (const role of ["admin", "member"] as const) it(`${role} vacía con auditoría, conserva lastSequence y bloquea reintentos viejos`, async () => {
     const { version } = await cleanSlate();
     await send(admin, "uno", version);
     await send(member, "dos", version);
-    const clear = await admin.request("DELETE", "/api/conversation/messages", {
+    const actor = role === "admin" ? admin : member;
+    const clear = await actor.request("DELETE", "/api/conversation/messages", {
       body: { conversationVersion: version },
     });
     assert.equal(clear.status, 200);
@@ -306,6 +312,14 @@ describe("API chat (PostgreSQL real)", () => {
     const list = await admin.request("GET", "/api/messages?limit=50", { csrf: false });
     assert.deepEqual((list.json as { messages: unknown[] }).messages, []);
 
+    const actorId = role === "admin" ? server.users.adminId : server.users.memberId;
+    const audit = await server.db.deletionAudit.findFirstOrThrow({ where: { action: "conversation_cleared" } });
+    assert.equal(audit.actorId, actorId);
+    assert.equal(await server.db.messageTombstone.count(), 2);
+    assert.equal(readJournal(server.journalPath).intents[0].actorId, actorId);
+    const stale = await actor.request("DELETE", "/api/conversation/messages", { body: { conversationVersion: version } });
+    assert.equal(stale.status, 409);
+    assert.equal(await server.db.deletionAudit.count(), 1);
     const next = await send(admin, "nuevo", version + 1);
     assert.equal(next.status, 201);
     assert.equal((next.json as { message: { sequence: number } }).message.sequence, 3);

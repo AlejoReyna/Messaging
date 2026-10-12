@@ -14,12 +14,13 @@ export interface PendingMessage {
   replyTo?: ReplySnapshot;
 }
 
-/** Inserta ordenando por sequence y deduplicando por id. */
+/** Inserta ordenando por sequence y deduplicando por id. La entrada nueva gana:
+ *  la base de datos es la verdad (ediciones ya aplicadas). */
 export function mergeMessages(existing: Message[], incoming: Message[]): Message[] {
   const byId = new Map<string, Message>();
   for (const m of existing) byId.set(m.id, m);
   for (const m of incoming) {
-    if (!byId.has(m.id)) byId.set(m.id, m);
+    byId.set(m.id, m);
   }
   return [...byId.values()].sort((a, b) => a.sequence - b.sequence);
 }
@@ -44,6 +45,26 @@ export function applyDeleted(
 ): { messages: Message[]; version: number } {
   return {
     messages: messages.filter((m) => m.id !== event.messageId),
+    version: Math.max(version, event.conversationVersion),
+  };
+}
+
+/** Aplica edición: reemplaza el mensaje por id y sube la versión. */
+export function applyEdited(
+  messages: Message[],
+  event: { message: Message; conversationVersion: number },
+  version: number,
+): { messages: Message[]; version: number } {
+  let found = false;
+  const next = messages.map((m) => {
+    if (m.id !== event.message.id) return m;
+    found = true;
+    return event.message;
+  });
+  return {
+    messages: found
+      ? [...next].sort((a, b) => a.sequence - b.sequence)
+      : [...messages, event.message].sort((a, b) => a.sequence - b.sequence),
     version: Math.max(version, event.conversationVersion),
   };
 }

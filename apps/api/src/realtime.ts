@@ -2,6 +2,7 @@ import type { Server as HttpServer } from "node:http";
 import { Server, type Socket } from "socket.io";
 import {
   MessageCreatedEventSchema,
+  MessageEditedEventSchema,
   MessageDeletedEventSchema,
   ConversationClearedEventSchema,
   UserResponseSchema,
@@ -226,7 +227,7 @@ export class RealtimeHub {
   }
 
   private broadcast(
-    event: "message:created" | "message:deleted" | "conversation:cleared" | "profile:updated" | "read:updated" | "presence:updated" | "typing:updated",
+    event: "message:created" | "message:edited" | "message:deleted" | "conversation:cleared" | "profile:updated" | "read:updated" | "presence:updated" | "typing:updated",
     schema: { safeParse: (v: unknown) => { success: boolean } },
     payload: unknown,
   ): void {
@@ -236,6 +237,10 @@ export class RealtimeHub {
 
   messageCreated(message: Message): void {
     this.broadcast("message:created", MessageCreatedEventSchema, { message });
+  }
+
+  messageEdited(message: Message, conversationVersion: number): void {
+    this.broadcast("message:edited", MessageEditedEventSchema, { message, conversationVersion });
   }
 
   messageDeleted(messageId: string, conversationVersion: number): void {

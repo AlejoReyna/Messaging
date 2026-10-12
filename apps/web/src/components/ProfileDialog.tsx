@@ -125,7 +125,7 @@ export function ProfileDialog({ me, theme, onChooseTheme, font, onChooseFont, bu
                   </span>
                 </button>
               </h2>
-              <p className="text-xs text-muted">{me.role === 'admin' ? 'Administrador · puede borrar cualquier mensaje' : 'Miembro · puede borrar sus mensajes'}</p>
+              <p className="text-xs text-muted">{me.role === 'admin' ? 'Administrador · puede borrar cualquier mensaje' : 'Miembro · puede borrar sus mensajes y vaciar el chat'}</p>
             </div>
           </div>
 

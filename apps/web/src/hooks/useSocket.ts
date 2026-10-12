@@ -10,6 +10,7 @@ export type ChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export interface SocketHandlers {
   onCreated: (e: { message: import('@private-chat/contracts').Message }) => void;
+  onEdited: (e: { message: import('@private-chat/contracts').Message; conversationVersion: number }) => void;
   onDeleted: (e: { messageId: string; conversationVersion: number }) => void;
   onCleared: (e: { conversationVersion: number }) => void;
   onProfile: (e: { user: import('@private-chat/contracts').PublicUser }) => void;
@@ -57,6 +58,7 @@ export function useChatSocket(
     socket.on('connect', () => handlersRef.current.onConnectState(true));
     socket.on('disconnect', () => handlersRef.current.onConnectState(false));
     socket.on('message:created', (p) => { if (valid('message:created', p)) handlersRef.current.onCreated(p); });
+    socket.on('message:edited', (p) => { if (valid('message:edited', p)) handlersRef.current.onEdited(p); });
     socket.on('message:deleted', (p) => { if (valid('message:deleted', p)) handlersRef.current.onDeleted(p); });
     socket.on('conversation:cleared', (p) => { if (valid('conversation:cleared', p)) handlersRef.current.onCleared(p); });
     socket.on('profile:updated', (p) => { if (valid('profile:updated', p)) handlersRef.current.onProfile(p); });

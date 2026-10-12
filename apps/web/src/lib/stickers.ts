@@ -38,16 +38,18 @@ import sticker37 from '../assets/stickers/chiikawa/455656378.png';
 import sticker38 from '../assets/stickers/chiikawa/455656379.png';
 import sticker39 from '../assets/stickers/chiikawa/455656380.png';
 import sticker40 from '../assets/stickers/chiikawa/455656381.png';
+import { SIGSTICK_PACKS } from './sigstick-packs';
 
 export interface ChatSticker {
   id: string;
   label: string;
   src: string;
+  thumbnailSrc?: string;
   body: string;
 }
 
 // Los IDs y marcadores permanecen estables para el historial ya guardado.
-export const CHIIKAWA_STICKERS: readonly ChatSticker[] = [
+const LEGACY_CHIIKAWA_STICKERS: readonly ChatSticker[] = [
   { id: '455656342', label: 'Chiikawa · Sí', src: sticker1, body: '[sticker:chiikawa:455656342]' },
   { id: '455656343', label: 'Chiikawa y Hachiware · De acuerdo', src: sticker2, body: '[sticker:chiikawa:455656343]' },
   { id: '455656344', label: 'Chiikawa · Paseo', src: sticker3, body: '[sticker:chiikawa:455656344]' },
@@ -89,6 +91,21 @@ export const CHIIKAWA_STICKERS: readonly ChatSticker[] = [
   { id: '455656380', label: 'Kappa · Sonrisa', src: sticker39, body: '[sticker:chiikawa:455656380]' },
   { id: '455656381', label: 'Chiikawa y Momonga · Monocromo', src: sticker40, body: '[sticker:chiikawa:455656381]' },
 ];
+
+export interface ChatStickerPack {
+  id: string;
+  label: string;
+  coverSrc: string;
+  stickers: readonly ChatSticker[];
+}
+
+// El pack Chiikawa ちいかわ va primero por elección del usuario. El catálogo
+// original sigue disponible y conserva cada marcador del historial.
+export const CHIIKAWA_PACKS: readonly ChatStickerPack[] = [
+  ...SIGSTICK_PACKS,
+  { id: 'chiikawa-4', label: 'Chiikawa 4', coverSrc: sticker1, stickers: LEGACY_CHIIKAWA_STICKERS },
+];
+export const CHIIKAWA_STICKERS: readonly ChatSticker[] = CHIIKAWA_PACKS.flatMap((pack) => pack.stickers);
 
 const stickersByBody = new Map(CHIIKAWA_STICKERS.map((sticker) => [sticker.body, sticker]));
 

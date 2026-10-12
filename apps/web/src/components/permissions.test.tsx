@@ -69,11 +69,16 @@ describe('permisos de borrado en el cliente (el servidor es la autoridad)', () =
     expect(screen.getByRole('button', { name: /vaciar conversación/i })).toBeInTheDocument();
   });
 
-  it('el member no puede borrar mensajes ajenos ni vaciar el chat', () => {
-    render(<ChatPanel {...baseProps({ isAdmin: false, me: user({ role: 'member' }) })} />);
+  it('el member puede abrir el vaciado pero no borrar mensajes ajenos individualmente', () => {
+    const props = baseProps({ isAdmin: false, me: user({ role: 'member' }) });
+    render(<ChatPanel {...props} />);
     fireEvent.click(screen.getByRole('button', { name: /opciones del mensaje/i }));
     expect(screen.queryByRole('button', { name: /borrar mensaje/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /vaciar conversación/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /vaciar conversación/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /vaciar conversación/i }));
+    expect(props.onClear).toHaveBeenCalledOnce();
+    expect(props.onDeleteMessage).not.toHaveBeenCalled();
+    // Abrir la confirmación sólo llama al controlador; no borra directamente.
     // El historial sigue visible para el miembro.
     expect(screen.getByText('Hola, ¿cómo estás?')).toBeInTheDocument();
   });
@@ -103,7 +108,7 @@ describe('permisos de borrado en el cliente (el servidor es la autoridad)', () =
     expect(button).toHaveAttribute('title', 'Borrar para ambos');
     fireEvent.click(button);
     expect(props.onDeleteMessage).toHaveBeenCalledExactlyOnceWith(ownMessage.id);
-    expect(screen.queryByRole('button', { name: /vaciar conversación/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /vaciar conversación/i })).toBeInTheDocument();
     expect(screen.getByText('Hola, ¿cómo estás?')).toBeInTheDocument();
   });
 });

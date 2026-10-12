@@ -11,6 +11,7 @@ import {
   ChangePinInputSchema,
   UpdateProfileInputSchema,
   SendMessageInputSchema,
+  EditMessageInputSchema,
   MessagesQuerySchema,
   MarkReadInputSchema,
   DeleteInputSchema,
@@ -94,7 +95,7 @@ function cookieFlags(isProd: boolean): { httpOnly: true; secure: boolean; sameSi
 }
 
 const messageSelect = { id: true, clientMessageId: true, senderId: true, sequence: true,
-  body: true, createdAt: true, photoHash: true, videoHash: true, audioHash: true, audioDurationSeconds: true, replyToMessageId: true } as const;
+  body: true, createdAt: true, editedAt: true, photoHash: true, videoHash: true, audioHash: true, audioDurationSeconds: true, replyToMessageId: true } as const;
 
 type ReplyTarget = { id: string; senderId: string; body: string; photoHash: string | null; videoHash: string | null; audioHash: string | null; audioDurationSeconds: number | null };
 const replyTargetSelect = { id: true, senderId: true, body: true, photoHash: true, videoHash: true, audioHash: true, audioDurationSeconds: true } as const;
@@ -133,6 +134,7 @@ function serializeMessage(row: {
   sequence: number;
   body: string;
   createdAt: Date;
+  editedAt?: Date | null;
   photoHash?: string | null;
   videoHash?: string | null;
   audioHash?: string | null;
@@ -147,6 +149,7 @@ function serializeMessage(row: {
     sequence: row.sequence,
     body: row.body,
     createdAt: row.createdAt.toISOString(),
+    editedAt: row.editedAt ? row.editedAt.toISOString() : null,
     ...(row.photoHash ? { photoUrl: `/api/messages/${row.id}/photo` } : {}),
     ...(row.videoHash ? { videoUrl: `/api/messages/${row.id}/video` } : {}),
     ...(row.audioHash && row.audioDurationSeconds ? { audioUrl: `/api/messages/${row.id}/audio`, audioDurationSeconds: row.audioDurationSeconds } : {}),
@@ -755,6 +758,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       sequence: number;
       body: string;
       createdAt: Date;
+      editedAt: Date | null;
       photoHash: string | null;
       videoHash: string | null;
       audioHash: string | null;
@@ -1211,14 +1215,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     return reply.status(204).send();
   });
 
-  // --- Borrados (propios o admin; vaciado sólo admin) -------------------------
-  async function requireAdmin(request: FastifyRequest): Promise<ApiHttpError | null> {
-    if (!request.auth) return ERRORS.unauthenticated();
-    const user = await db.user.findUnique({ where: { id: request.auth.userId }, select: { role: true } });
-    if (!user) return ERRORS.unauthenticated();
-    if (user.role !== "admin") return ERRORS.forbidden();
-    return null;
-  }
+  // --- Borrados (propios o admin; vaciado de ambas cuentas autenticadas) -----
 
   function journalWriteError(stage: string): ApiHttpError {
     app.log.error(`No se pudo escribir el journal de borrados (${stage})`);
@@ -1300,11 +1297,84 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     return reply.send({ messageId, conversationVersion: newVersion });
   });
 
+  // --- Edición (v8): sólo el autor puede editar su propio texto; ni siquiera
+  // el admin edita mensajes ajenos. Cambia body + editedAt y sube la versión
+  // para que la reconexión recargue y los envíos con versión obsoleta den 409.
+  app.patch("/api/messages/:messageId", async (request, reply) => {
+    const error = await guard(request, { auth: true, csrf: true });
+    if (error) return fail(reply, error);
+    const actorId = request.auth!.userId;
+
+    const params = request.params as { messageId?: string };
+    const messageId = params.messageId ?? "";
+    if (!/^[0-9a-f-]{36}$/i.test(messageId)) return fail(reply, ERRORS.validation("Identificador no válido"));
+    const parsed = EditMessageInputSchema.safeParse(request.body);
+    if (!parsed.success) return fail(reply, ERRORS.validation(zodDetails(parsed.error) ?? "Datos no válidos"));
+
+    const newVersion = parsed.data.conversationVersion + 1;
+    type EditedRow = {
+      id: string; clientMessageId: string; senderId: string; sequence: number;
+      body: string; createdAt: Date; editedAt: Date | null;
+      photoHash: string | null; videoHash: string | null;
+      audioHash: string | null; audioDurationSeconds: number | null;
+      replyToMessageId: string | null;
+    };
+    let txResult: { row: EditedRow; alreadyCurrent: boolean } | null = null;
+    try {
+      txResult = await db.$transaction(async (tx) => {
+        const conv = await lockConversation(tx);
+        if (conv.version !== parsed.data.conversationVersion) {
+          throw Object.assign(new Error("CONVERSATION_CHANGED"), { code: "CONVERSATION_CHANGED" });
+        }
+        const target = await tx.message.findUnique({
+          where: { id: messageId },
+          select: { ...messageSelect },
+        });
+        if (!target) {
+          const deleted = await tx.messageTombstone.findUnique({ where: { messageId }, select: { messageId: true } });
+          const code = deleted ? "MESSAGE_DELETED" : "MESSAGE_NOT_FOUND";
+          throw Object.assign(new Error(code), { code });
+        }
+        // Sólo el autor: el admin no edita mensajes que no envió.
+        if (target.senderId !== actorId) throw ERRORS.forbidden();
+        if (target.body === parsed.data.body) {
+          return { row: target, alreadyCurrent: true };
+        }
+        const now = new Date();
+        const row = await tx.message.update({
+          where: { id: messageId },
+          data: { body: parsed.data.body, editedAt: now },
+          select: messageSelect,
+        });
+        await tx.conversation.update({ where: { id: 1 }, data: { version: newVersion } });
+        return { row, alreadyCurrent: false };
+      });
+    } catch (e: unknown) {
+      const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+      if (code === "CONVERSATION_CHANGED") return fail(reply, ERRORS.conversationChanged());
+      if (code === "MESSAGE_NOT_FOUND") return fail(reply, ERRORS.messageNotFound());
+      if (code === "MESSAGE_DELETED") return fail(reply, ERRORS.messageDeleted());
+      if (code === "FORBIDDEN") return fail(reply, ERRORS.forbidden());
+      if (code === "NOT_PROVISIONED") return fail(reply, ERRORS.unavailable());
+      throw e;
+    }
+    if (!txResult) return fail(reply, ERRORS.internal());
+    const updatedRow: EditedRow = txResult.row;
+    const alreadyCurrent: boolean = txResult.alreadyCurrent;
+    const replies = await fetchReplyTargets(db,
+      updatedRow.replyToMessageId ? [updatedRow.replyToMessageId] : []);
+    const message = serializeMessage(updatedRow, replies);
+    if (alreadyCurrent) {
+      return reply.send({ message, conversationVersion: parsed.data.conversationVersion });
+    }
+    app.hub?.messageEdited(message, newVersion);
+    return reply.send({ message, conversationVersion: newVersion });
+  });
+
   app.delete("/api/conversation/messages", async (request, reply) => {
     const error = await guard(request, { auth: true, csrf: true });
     if (error) return fail(reply, error);
-    const adminError = await requireAdmin(request);
-    if (adminError) return fail(reply, adminError);
+    if (request.headers.origin && request.headers.origin !== config.appOrigin) return fail(reply, ERRORS.csrfInvalid());
     const actorId = request.auth!.userId;
 
     const parsed = DeleteInputSchema.safeParse(request.body);
@@ -1329,6 +1399,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         if (conv.version !== parsed.data.conversationVersion) {
           throw Object.assign(new Error("CONVERSATION_CHANGED"), { code: "CONVERSATION_CHANGED" });
         }
+        const actor = await tx.user.findUnique({ where: { id: actorId }, select: { id: true } });
+        if (!actor) throw ERRORS.unauthenticated();
         // Capturar IDs bajo lock: incluye exactamente lo que se eliminará.
         const active = await tx.message.findMany({ where: { conversationId: 1 }, select: { id: true } });
         messageIds = active.map((row) => row.id);
