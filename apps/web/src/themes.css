@@ -309,3 +309,29 @@
   --theme-bubble: #f7b1d4;
   --theme-bubble-ink: #ffffff;
 }
+
+/* Homura: perla y plata lavanda, tinta carbón y violeta amatista.
+   Conserva los mismos roles de superficie, cabecera y globos que Madoka. */
+[data-theme="homura"] {
+  color-scheme: light;
+  --color-canvas: #f3eff8;
+  --color-surface: #fcfaff;
+  --color-header: #ddd1ed;
+  --color-surface-muted: #e9e1f2;
+  --color-surface-hover: #ddd1ed;
+  --color-line: #b9a6ce;
+  --color-ink: #302739;
+  --color-muted: #655475;
+  --color-subtle: #655475;
+  --color-accent: #6b3fa0;
+  --color-accent-hover: #532d82;
+  --color-accent-soft: #8060a8;
+  --color-on-accent: #ffffff;
+  --color-success: #367064;
+  --color-danger: #963e65;
+  --color-danger-hover: #772e4f;
+  --color-on-danger: #ffffff;
+  --color-overlay: #30223f;
+  --theme-bubble: #8060a8;
+  --theme-bubble-ink: #ffffff;
+}

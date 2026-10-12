@@ -216,3 +216,14 @@ La QA del principal detectó que Vite inlineaba el SVG pequeño como `data:image
 - Cabecera más rosada, con el mismo color en `theme-color` y bordes del viewport.
 - Presencia en verde fijo para todos los temas; estado desconectado conserva el color de línea.
 - Build frontend y QA de su versión minificada en 1440×900/390×844 con API y Socket.IO sintéticos: recibido/propio rosados, cabecera, metadata, verde tras eventos reales del cliente Socket.IO, cambio de tema y aislamiento del color propio. Capturas en `.data/qa/pinkie-received-header/`. Publicación por CI/CD.
+
+
+## Homura y aislamiento de vistas previas — 2026-10-12
+
+- Homura es una paleta nueva inspirada en Homura Akemi: perla, plata lavanda, cabecera lila, tinta carbón y violetas amatista. Conserva la estructura de Madoka: gradiente suave, recibidos blancos con texto negro, enviados violetas con texto blanco; citas y colas siguen su globo. Contraste blanco/violeta de envío calculado: 5.05:1.
+- Registro inmediatamente después de Madoka: ambas tarjetas comparten fila en las dos columnas existentes. Persistencia mediante `useTheme`, sin migraciones ni cambios en los temas iniciales por rol. Colores personalizados sólo en los mensajes propios.
+- Corrección solicitada de Madoka: su gradiente de vista previa estaba alcanzando todas las tarjetas al seleccionarlo. Se limita a `label[data-theme="madoka"]`; Homura usa el mismo aislamiento. Se conservan los cambios locales previos de recibidos blancos.
+- Archivos: `apps/web/src/lib/themes.ts`, `apps/web/src/themes.css`, `apps/web/src/index.css`, `docs/CONTRACT.md`, `docs/THEMES.md` y este informe. Sin dependencias nuevas ni cambios de contratos/API.
+- Comandos: `npm run build --workspace @private-chat/web` (TypeScript y Vite correctos; permanece aviso de chunk JS >500 kB), `npm run test --workspace @private-chat/web` (19 archivos, 119 pruebas correctas; aviso de jsdom sobre `HTMLMediaElement.play`), `git diff --check` y cálculo independiente de contraste.
+- QA visual con Safari mediante componentes reales `ChatPanel`/`ProfileDialog` y datos sintéticos locales: escritorio y iframe de 390×844; alternancia Madoka/Homura, fondos independientes de tarjetas con Madoka seleccionado, ubicación contigua, propios violetas/blancos, recibidos blancos/negros, citas y colas, color azul sólo en propios y preferencia conservada al volver a cargar. Fixture local en `.data/qa/homura/`, excluida de Git; accesos temporales retirados al terminar.
+- Límites: revisión de apariencia y pruebas frontend; no se ejecutó integración de dos usuarios contra PostgreSQL ni despliegue, y no se afirma verificación de Safari/iOS en dispositivo real.

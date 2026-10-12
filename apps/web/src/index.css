@@ -332,26 +332,36 @@ body {
 }
 
 [data-theme="madoka"] .chat-panel[data-background="plain"],
-[data-theme="madoka"] .theme-preview {
+label[data-theme="madoka"] .theme-preview {
   background: linear-gradient(135deg, #fff1f8 0%, #f2ecff 58%, #e5f8f5 100%);
 }
 [data-theme="madoka"] .own-bubble,
 [data-theme="madoka"] .message-bubble:not([data-sticker="true"]) { color: #ffffff; }
-[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) {
+[data-theme="homura"] .chat-panel[data-background="plain"],
+[data-theme="homura"] .background-preview[data-background="plain"],
+label[data-theme="homura"] .theme-preview {
+  background: linear-gradient(135deg, #f3eff8 0%, #e8def4 58%, #edf0f5 100%);
+}
+[data-theme="homura"] .message-bubble[data-mine="true"]:not([data-sticker="true"]) .message-quote,
+[data-theme="homura"] .message-bubble[data-mine="true"]:not([data-sticker="true"]) .message-quote > span {
+  color: var(--bubble-custom-ink, var(--theme-bubble-ink));
+  border-color: var(--bubble-custom-ink, var(--theme-bubble-ink));
+}
+:is([data-theme="madoka"], [data-theme="homura"]) .message-bubble[data-mine="false"]:not([data-sticker="true"]) {
   background: #ffffff;
   border-color: #ffffff;
   color: #000000;
 }
-[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) > span[aria-hidden="true"] {
+:is([data-theme="madoka"], [data-theme="homura"]) .message-bubble[data-mine="false"]:not([data-sticker="true"]) > span[aria-hidden="true"] {
   border-top-color: #ffffff;
 }
-[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-meta,
-[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-trigger,
-[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-quote > span {
+:is([data-theme="madoka"], [data-theme="homura"]) .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-meta,
+:is([data-theme="madoka"], [data-theme="homura"]) .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-trigger,
+:is([data-theme="madoka"], [data-theme="homura"]) .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-quote > span {
   color: inherit;
 }
-[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-quote { border-color: currentColor; }
-[data-theme="madoka"] .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-gutter { background: transparent; }
+:is([data-theme="madoka"], [data-theme="homura"]) .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-quote { border-color: currentColor; }
+:is([data-theme="madoka"], [data-theme="homura"]) .message-bubble[data-mine="false"]:not([data-sticker="true"]) .message-menu-gutter { background: transparent; }
 .confirm-overlay {
   /* Prefijo primero: la minificación debe conservar la propiedad estándar. */
   -webkit-backdrop-filter: blur(10px);

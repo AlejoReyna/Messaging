@@ -6,6 +6,7 @@ export const THEMES = [
   { id: 'original', name: 'Blanco original', mode: 'Claro' },
   { id: 'night', name: 'Nocturno · morado', mode: 'Oscuro' },
   { id: 'madoka', name: 'Madoka', mode: 'Claro' },
+  { id: 'homura', name: 'Homura', mode: 'Claro' },
   { id: 'telegram-dark', name: 'Telegram Dark', mode: 'Oscuro' },
   { id: 'github-light', name: 'GitHub Light', mode: 'Claro' },
   { id: 'github-dark', name: 'GitHub Dark', mode: 'Oscuro' },
