@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const CONTRACT_VERSION = 6;
+export const CONTRACT_VERSION = 7;
 export const MAX_MESSAGE_LENGTH = 4000;
 export const MAX_CHAT_PHOTO_BYTES = 5 * 1024 * 1024;
 export const PHOTO_MESSAGE_BODY = '📷 Foto';
@@ -8,6 +8,10 @@ export const MAX_CHAT_VIDEO_BYTES = 50 * 1024 * 1024;
 export const MAX_CHAT_VIDEO_SECONDS = 180;
 export const VIDEO_MESSAGE_BODY = '🎬 Video';
 export const VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'] as const;
+export const MAX_CHAT_AUDIO_BYTES = 10 * 1024 * 1024;
+export const MAX_CHAT_AUDIO_SECONDS = 180;
+export const AUDIO_MESSAGE_BODY = '🎤 Nota de voz';
+export const AUDIO_MIME_TYPES = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/mpeg', 'audio/wav'] as const;
 export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 export const PUSH_ENDPOINT_MAX_LENGTH = 2000;
 export const AVATAR_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
@@ -17,6 +21,11 @@ const uuid = z.uuid();
 const timestamp = z.iso.datetime();
 const nonnegativeInteger = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const positiveInteger = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER);
+const audioUrl = z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/audio$/i);
+const audioDuration = z.number().positive().max(MAX_CHAT_AUDIO_SECONDS);
+const validAttachment = (value: { photoUrl?: string; videoUrl?: string; audioUrl?: string; audioDurationSeconds?: number }) =>
+  [value.photoUrl, value.videoUrl, value.audioUrl].filter(Boolean).length <= 1 &&
+  (value.audioUrl !== undefined) === (value.audioDurationSeconds !== undefined);
 
 export const RoleSchema = z.enum(['admin', 'member']);
 export const UsernameSchema = z.string().trim().toLowerCase().min(3).max(32)
@@ -104,15 +113,19 @@ export const MessageSchema = z.strictObject({
   body: MessageBodySchema,
   photoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/photo$/i).optional(),
   videoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/video$/i).optional(),
+  audioUrl: audioUrl.optional(),
+  audioDurationSeconds: audioDuration.optional(),
   replyTo: z.strictObject({
     messageId: uuid,
     senderId: uuid,
     body: MessageBodySchema,
     photoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/photo$/i).optional(),
     videoUrl: z.string().regex(/^\/api\/messages\/[0-9a-f-]{36}\/video$/i).optional(),
-  }).refine((value) => !(value.photoUrl && value.videoUrl), 'Sólo un adjunto por mensaje').optional(),
+    audioUrl: audioUrl.optional(),
+    audioDurationSeconds: audioDuration.optional(),
+  }).refine(validAttachment, 'Adjunto no válido: sólo uno y duración requerida para audio').optional(),
   createdAt: timestamp,
-}).refine((value) => !(value.photoUrl && value.videoUrl), 'Sólo un adjunto por mensaje');
+}).refine(validAttachment, 'Adjunto no válido: sólo uno y duración requerida para audio');
 export const SendMessageInputSchema = z.strictObject({
   clientMessageId: uuid,
   body: MessageBodySchema,
@@ -248,10 +261,11 @@ export const API_ROUTES = {
   pinStatus: '/api/auth/pin-status', pinSetup: '/api/auth/pin-setup', pinLogin: '/api/auth/pin-login',
   changePin: '/api/auth/change-pin',
   me: '/api/users/me', myAvatar: '/api/users/me/avatar', conversation: '/api/conversation',
-  messages: '/api/messages', sendPhoto: '/api/messages/photo', sendVideo: '/api/messages/video', read: '/api/conversation/read', clearMessages: '/api/conversation/messages',
+  messages: '/api/messages', sendPhoto: '/api/messages/photo', sendVideo: '/api/messages/video', sendAudio: '/api/messages/audio', read: '/api/conversation/read', clearMessages: '/api/conversation/messages',
   vapidKey: '/api/push/vapid-key', pushSubscriptions: '/api/push/subscriptions',
   message: (id: string) => `/api/messages/${encodeURIComponent(id)}`,
   messagePhoto: (id: string) => `/api/messages/${encodeURIComponent(id)}/photo`,
   messageVideo: (id: string) => `/api/messages/${encodeURIComponent(id)}/video`,
+  messageAudio: (id: string) => `/api/messages/${encodeURIComponent(id)}/audio`,
   avatar: (id: string, version: number) => `/api/users/${encodeURIComponent(id)}/avatar?v=${version}`,
 } as const;

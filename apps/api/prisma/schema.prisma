@@ -76,6 +76,9 @@ model Message {
   photoHash       String?      @map("photo_hash") @db.Text
   videoData       Bytes?       @map("video_data")
   videoHash       String?      @map("video_hash") @db.Text
+  audioData       Bytes?       @map("audio_data")
+  audioHash       String?      @map("audio_hash") @db.Text
+  audioDurationSeconds Float?   @map("audio_duration_seconds")
   replyToMessageId String?     @map("reply_to_message_id") @db.Text
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
 

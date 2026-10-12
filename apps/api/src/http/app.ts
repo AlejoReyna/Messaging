@@ -25,6 +25,9 @@ import {
   PHOTO_MESSAGE_BODY,
   VIDEO_MESSAGE_BODY,
   MAX_CHAT_VIDEO_BYTES,
+  MAX_CHAT_AUDIO_BYTES,
+  AUDIO_MESSAGE_BODY,
+  AUDIO_MIME_TYPES,
   type SendMessageInput,
   type Message,
 } from "@private-chat/contracts";
@@ -49,6 +52,7 @@ import { toPublicUser } from "../users.js";
 import { detectImageFormat, processAvatarImage } from "../avatar.js";
 import { processChatPhoto } from "../photo.js";
 import { processChatVideo, parseVideoRange } from "../video.js";
+import { processChatAudio } from "../audio.js";
 import { replaceAvatar } from "../avatar-storage.js";
 import { applyConversationClear, applyMessageDeletion, lockConversation } from "../deletions.js";
 import { appendJournalEntry, type JournalEntry } from "../deletion-journal.js";
@@ -90,10 +94,10 @@ function cookieFlags(isProd: boolean): { httpOnly: true; secure: boolean; sameSi
 }
 
 const messageSelect = { id: true, clientMessageId: true, senderId: true, sequence: true,
-  body: true, createdAt: true, photoHash: true, videoHash: true, replyToMessageId: true } as const;
+  body: true, createdAt: true, photoHash: true, videoHash: true, audioHash: true, audioDurationSeconds: true, replyToMessageId: true } as const;
 
-type ReplyTarget = { id: string; senderId: string; body: string; photoHash: string | null; videoHash: string | null };
-const replyTargetSelect = { id: true, senderId: true, body: true, photoHash: true, videoHash: true } as const;
+type ReplyTarget = { id: string; senderId: string; body: string; photoHash: string | null; videoHash: string | null; audioHash: string | null; audioDurationSeconds: number | null };
+const replyTargetSelect = { id: true, senderId: true, body: true, photoHash: true, videoHash: true, audioHash: true, audioDurationSeconds: true } as const;
 
 function replySnapshot(target: ReplyTarget): NonNullable<Message["replyTo"]> {
   return {
@@ -102,6 +106,7 @@ function replySnapshot(target: ReplyTarget): NonNullable<Message["replyTo"]> {
     body: target.body,
     ...(target.photoHash ? { photoUrl: `/api/messages/${target.id}/photo` } : {}),
     ...(target.videoHash ? { videoUrl: `/api/messages/${target.id}/video` } : {}),
+    ...(target.audioHash && target.audioDurationSeconds ? { audioUrl: `/api/messages/${target.id}/audio`, audioDurationSeconds: target.audioDurationSeconds } : {}),
   };
 }
 
@@ -130,6 +135,8 @@ function serializeMessage(row: {
   createdAt: Date;
   photoHash?: string | null;
   videoHash?: string | null;
+  audioHash?: string | null;
+  audioDurationSeconds?: number | null;
   replyToMessageId?: string | null;
 }, replies?: Map<string, ReplyTarget>): Message {
   const target = row.replyToMessageId ? replies?.get(row.replyToMessageId) : undefined;
@@ -142,6 +149,7 @@ function serializeMessage(row: {
     createdAt: row.createdAt.toISOString(),
     ...(row.photoHash ? { photoUrl: `/api/messages/${row.id}/photo` } : {}),
     ...(row.videoHash ? { videoUrl: `/api/messages/${row.id}/video` } : {}),
+    ...(row.audioHash && row.audioDurationSeconds ? { audioUrl: `/api/messages/${row.id}/audio`, audioDurationSeconds: row.audioDurationSeconds } : {}),
     ...(target ? { replyTo: replySnapshot(target) } : {}),
   };
 }
@@ -201,7 +209,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const PIN_LOCK_MS = 30 * 60 * 1000;
   const sendByUser = new MemoryRateLimiter({ maxAttempts: 60, windowMs: 60 * 1000 });
   const videoByUser = new MemoryRateLimiter({ maxAttempts: 6, windowMs: 60 * 1000 });
-  let convertingVideo = false;
+  const audioByUser = new MemoryRateLimiter({ maxAttempts: 6, windowMs: 60 * 1000 });
+  let convertingMedia = false;
   const pushByUser = new MemoryRateLimiter({ maxAttempts: 30, windowMs: 60 * 1000 });
 
   // --- Sesión y CSRF -------------------------------------------------------
@@ -748,6 +757,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       createdAt: Date;
       photoHash: string | null;
       videoHash: string | null;
+      audioHash: string | null;
+      audioDurationSeconds: number | null;
       replyToMessageId: string | null;
     }>;
     let hasMore = false;
@@ -853,9 +864,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     const error = await guard(request, { auth: true, csrf: true });
     if (error) return fail(reply, error);
     const userId = request.auth!.userId;
-    if (convertingVideo || !videoByUser.take(userId)) return fail(reply, ERRORS.rateLimited());
+    if (convertingMedia || !videoByUser.take(userId)) return fail(reply, ERRORS.rateLimited());
     // Reserve before reading: at most one 50 MiB upload/conversion in memory.
-    convertingVideo = true;
+    convertingMedia = true;
     try {
       let video: Buffer | undefined;
       const fields: Record<string, string> = {};
@@ -882,7 +893,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       catch { return fail(reply, ERRORS.uploadInvalid("Video no válido. Usa MP4, MOV o WebM de hasta 50 MiB y 3 minutos.")); }
       return await persistMessage(userId, parsed.data, reply, undefined, { data: processed, hash });
     } finally {
-      convertingVideo = false;
+      convertingMedia = false;
     }
   });
 
@@ -908,12 +919,75 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     return reply.header("content-length", data.length).send(data);
   });
 
+  app.post("/api/messages/audio", async (request, reply) => {
+    if (request.headers.origin && request.headers.origin !== config.appOrigin) return fail(reply, ERRORS.csrfInvalid());
+    const error = await guard(request, { auth: true, csrf: true });
+    if (error) return fail(reply, error);
+    const userId = request.auth!.userId;
+    if (convertingMedia || !audioByUser.take(userId)) return fail(reply, ERRORS.rateLimited());
+    // Shared reservation with video before reading: one decoder/upload at a time.
+    convertingMedia = true;
+    try {
+      let audio: Buffer | undefined;
+      const fields: Record<string, string> = {};
+      try {
+        for await (const part of request.parts({ limits: { fileSize: MAX_CHAT_AUDIO_BYTES, files: 1, fields: 4, parts: 5 } })) {
+          if (part.type === "file") {
+            if (part.fieldname !== "audio" || audio ||
+              !AUDIO_MIME_TYPES.some(type => type === part.mimetype.split(";")[0]?.trim().toLowerCase())) throw new Error("INVALID_AUDIO");
+            audio = await part.toBuffer();
+            if (part.file.truncated) throw new Error("INVALID_AUDIO");
+          } else {
+            if (!["body", "clientMessageId", "conversationVersion", "replyToMessageId"].includes(part.fieldname) ||
+              part.fieldname in fields || typeof part.value !== "string" || part.valueTruncated) throw new Error("INVALID_FIELDS");
+            fields[part.fieldname] = part.value;
+          }
+        }
+        if (!audio?.length) throw new Error("INVALID_AUDIO");
+      } catch { return fail(reply, ERRORS.uploadInvalid("Nota de voz no válida. Máximo 10 MiB y 3 minutos.")); }
+      const parsed = SendMessageInputSchema.safeParse({ ...fields,
+        body: fields["body"]?.trim() || AUDIO_MESSAGE_BODY, conversationVersion: Number(fields["conversationVersion"]) });
+      if (!parsed.success) return fail(reply, ERRORS.validation("Datos no válidos"));
+      const hash = createHash("sha256").update(audio).digest("hex");
+      let processed: Awaited<ReturnType<typeof processChatAudio>>;
+      try { processed = await processChatAudio(audio); }
+      catch { return fail(reply, ERRORS.uploadInvalid("Nota de voz no válida. Máximo 10 MiB y 3 minutos.")); }
+      return await persistMessage(userId, parsed.data, reply, undefined, undefined, { ...processed, hash });
+    } finally {
+      convertingMedia = false;
+    }
+  });
+
+  app.get("/api/messages/:messageId/audio", async (request, reply) => {
+    const error = await guard(request, { auth: true, csrf: false });
+    if (error) return fail(reply, error);
+    const { messageId } = request.params as { messageId: string };
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId)) {
+      return fail(reply, ERRORS.validation("Identificador no válido"));
+    }
+    const row = await db.message.findUnique({ where: { id: messageId }, select: { audioData: true } });
+    if (!row?.audioData) return fail(reply, ERRORS.messageNotFound());
+    const data = Buffer.from(row.audioData);
+    reply.type("audio/mp4").header("x-content-type-options", "nosniff").header("accept-ranges", "bytes");
+    const header = request.headers.range;
+    if (header) {
+      const range = parseVideoRange(header, data.length);
+      if (!range) return reply.code(416).header("content-range", `bytes */${data.length}`).send();
+      const bytes = data.subarray(range.start, range.end + 1);
+      return reply.code(206).header("content-range", `bytes ${range.start}-${range.end}/${data.length}`)
+        .header("content-length", bytes.length).send(bytes);
+    }
+    return reply.header("content-length", data.length).send(data);
+  });
+
   async function persistMessage(userId: string, input: SendMessageInput, reply: FastifyReply,
-    photo?: Buffer, video?: { data: Buffer; hash: string }) {
+    photo?: Buffer, video?: { data: Buffer; hash: string },
+    audio?: { data: Buffer; hash: string; durationSeconds: number }) {
     const { clientMessageId, body, conversationVersion, replyToMessageId } = input;
 
     const photoHash = photo ? createHash("sha256").update(photo).digest("hex") : null;
     const videoHash = video?.hash ?? null;
+    const audioHash = audio?.hash ?? null;
     const sameReply = (value: string | null | undefined): boolean =>
       (value ?? null) === (replyToMessageId ?? null);
 
@@ -928,7 +1002,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
           select: messageSelect,
         });
         if (existing) {
-          if (existing.body !== body || existing.photoHash !== photoHash || existing.videoHash !== videoHash || !sameReply(existing.replyToMessageId)) {
+          if (existing.body !== body || existing.photoHash !== photoHash || existing.videoHash !== videoHash || existing.audioHash !== audioHash || !sameReply(existing.replyToMessageId)) {
             throw Object.assign(new Error("IDEMPOTENCY_CONFLICT"), { code: "IDEMPOTENCY_CONFLICT" });
           }
           const replies = await fetchReplyTargets(tx,
@@ -969,6 +1043,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
             body,
             ...(photo ? { photoData: new Uint8Array(photo), photoHash } : {}),
             ...(video ? { videoData: new Uint8Array(video.data), videoHash } : {}),
+            ...(audio ? { audioData: new Uint8Array(audio.data), audioHash, audioDurationSeconds: audio.durationSeconds } : {}),
             ...(replyToMessageId ? { replyToMessageId } : {}),
           },
           select: messageSelect,
@@ -1006,7 +1081,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
           select: messageSelect,
         });
         if (existing) {
-          if (existing.body !== body || existing.photoHash !== photoHash || existing.videoHash !== videoHash || !sameReply(existing.replyToMessageId)) return fail(reply, ERRORS.idempotencyConflict());
+          if (existing.body !== body || existing.photoHash !== photoHash || existing.videoHash !== videoHash || existing.audioHash !== audioHash || !sameReply(existing.replyToMessageId)) return fail(reply, ERRORS.idempotencyConflict());
           const replies = await fetchReplyTargets(db,
             existing.replyToMessageId ? [existing.replyToMessageId] : []);
           return reply.status(200).send({ message: serializeMessage(existing, replies) });
@@ -1302,7 +1377,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       ? (error as { statusCode: number }).statusCode
       : 500;
     if (statusCode === 413) {
-      return reply.status(400).send(errorBody(ERRORS.uploadInvalid("El archivo supera los 5 MiB")));
+      return reply.status(400).send(errorBody(ERRORS.uploadInvalid("El archivo supera el tamaño permitido")));
     }
     if (statusCode >= 400 && statusCode < 500) {
       request.log.warn(`Solicitud rechazada: ${request.method} ${request.url} -> ${statusCode}`);

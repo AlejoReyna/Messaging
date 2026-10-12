@@ -1,6 +1,6 @@
 # Temas y personalización
 
-Diez adaptaciones de paletas existentes para el chat. Se conservan sus colores de fondo y acento, asignándolos a superficies, texto, burbujas y acciones. GitHub Light es la opción neutra por defecto.
+Diez adaptaciones de paletas existentes para el chat. Se conservan sus colores de fondo y acento, asignándolos a superficies, texto, burbujas y acciones. Telegram Dark es la opción predeterminada desde el 2026-10-12, inspirada en las capturas del usuario; las opciones anteriores se conservan.
 
 | Temas | Fuente original |
 | --- | --- |
@@ -14,7 +14,7 @@ Diez adaptaciones de paletas existentes para el chat. Se conservan sus colores d
 
 Los colores funcionales de lectura, peligro y texto secundario se ajustan cuando la paleta original no alcanza 4.5:1 en las superficies del chat. No son paquetes oficiales de estas marcas ni cambios en la identidad de la app.
 
-`apps/web/src/themes.css` contiene las once paletas mediante variables CSS y selectores `data-theme`. Cocoa es la opción inicial para la cuenta Marthiel; una preferencia guardada por esa cuenta tiene prioridad. No requiere estilos inline, fuentes externas ni dependencias nuevas. Los componentes usan colores semánticos, incluidos texto de botones y diálogos de peligro en temas oscuros.
+`apps/web/src/themes.css` contiene Telegram Dark y las once paletas previas mediante variables CSS y selectores `data-theme`. Telegram Dark es la opción inicial para ambas cuentas; una preferencia guardada por esa cuenta tiene prioridad. No requiere estilos inline, fuentes externas ni dependencias nuevas. Los componentes usan colores semánticos, incluidos texto de botones y diálogos de peligro en temas oscuros.
 
 La preferencia usa la clave `private-chat:theme:<userId>` en localStorage y sólo almacena el identificador del tema. No contiene credenciales, tokens, nombres, fotos ni mensajes. Es local a la cuenta y al navegador: no se sincroniza entre dispositivos. Si el almacenamiento está bloqueado, la selección funciona durante la sesión; si el valor guardado no existe, se usa GitHub Light.
 
@@ -22,12 +22,12 @@ El nombre y el avatar siguen guardándose por las rutas existentes del contrato,
 
 ## Tipografías (Ajustes › Tipografía)
 
-5 opciones; Patrick Hand sigue siendo la predeterminada de toda la interfaz. Inter, Nunito y Noto Serif viajan autohospedadas en `apps/web/src/assets/fonts/` (woff2 latin + avisos OFL), sin peticiones externas ni cambios de DTO: la preferencia usa la clave `private-chat:font:<userId>` en localStorage, por cuenta y navegador, igual que el tema. SF Mono Light no se distribuye (propietaria de Apple): si está instalada en el dispositivo se usa en peso ligero, y en el resto cae a la monoespaciada del sistema (`ui-monospace`).
+5 opciones; Inter es ahora la predeterminada de toda la interfaz; Patrick Hand sigue disponible. Inter, Nunito y Noto Serif viajan autohospedadas en `apps/web/src/assets/fonts/` (woff2 latin + avisos OFL), sin peticiones externas ni cambios de DTO: la preferencia usa la clave `private-chat:font:<userId>` en localStorage, por cuenta y navegador, igual que el tema. SF Mono Light no se distribuye (propietaria de Apple): si está instalada en el dispositivo se usa en peso ligero, y en el resto cae a la monoespaciada del sistema (`ui-monospace`).
 
 La foto seleccionada usa una URL blob local, revocada al reemplazar la selección o cerrar la vista. Guardar queda deshabilitado hasta que el navegador decodifique la imagen. Cancelar no sube ni guarda archivos. Un error del servidor conserva la selección para permitir reintentar. La CSP existente admite imágenes blob y sigue prohibiendo scripts y estilos inline.
 
 ## Área superior de iPhone
 
-La cabecera usa `--color-surface`. `useTheme` aplica `data-theme` y lee ese mismo token CSS para actualizar `meta[name="theme-color"]` antes de pintar. Esto cubre las once paletas, la selección manual y la preferencia guardada sin duplicar los colores en TypeScript. HTML y body también usan esa superficie en los bordes del viewport; `#root` conserva el fondo de contenido `--color-canvas`.
+La cabecera usa `--color-surface`. `useTheme` aplica `data-theme` y lee ese mismo token CSS para actualizar `meta[name="theme-color"]` antes de pintar. Esto cubre Telegram Dark y las once paletas previas, la selección manual y la preferencia guardada sin duplicar los colores en TypeScript. HTML y body también usan esa superficie en los bordes del viewport; `#root` conserva el fondo de contenido `--color-canvas`.
 
 HTML y manifest arrancan con `#ffffff`, superficie del tema inicial GitHub Light. Se conservan `viewport-fit=cover`, la separación de la cabecera mediante `env(safe-area-inset-top)` y el estilo de status bar `default`. La documentación de [WebKit sobre Safari 15](https://webkit.org/blog/11989/new-webkit-features-in-safari-15/) describe `theme-color` para la barra de estado y overscroll; [Apple documenta los estilos de status bar](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html). El acabado que aplica iOS debe comprobarse en un iPhone real, tanto desde el icono de inicio como en Safari.

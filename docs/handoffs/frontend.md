@@ -140,3 +140,50 @@ sólo para apuntar el proxy a otro backend local.
 - El usuario solicitó eliminar el envío de correo que no utiliza. Se retiraron `apps/api/src/notify.ts` y `apps/api/test/unit/notify.test.ts`; el código no estaba conectado a la configuración ni al flujo de mensajes.
 - Búsqueda de referencias SMTP y funciones del módulo en apps, contratos, infraestructura, scripts y workflows → ninguna referencia restante. `git diff --check` → OK. `npm run typecheck` → contratos, API y frontend OK. No se ejecutaron tests locales en esta limpieza; GitHub CI los ejecutará tras el push.
 - Esta limpieza resuelve el fallo TS2339 documentado en la entrega anterior. No requiere dependencias, cambios de contrato ni migraciones.
+
+## Telegram oscuro, notas de voz y fondo personal — 2026-10-12
+
+Esta sección describe la entrega actual; las descripciones iniciales de paleta, fuentes, permisos y alcance de los informes históricos anteriores no describen el producto actual. Se leyeron `docs/CONTRACT.md` y `packages/contracts/src/index.ts`; el principal coordinó contrato v7 antes de integrar audio. Se modificaron exclusivamente `apps/web/**` y este informe. No se instalaron dependencias, no se cambió el lockfile y no se delegó a otros agentes.
+
+### Interfaz
+
+- Nueva paleta Telegram Dark y fuente Inter como predeterminadas. Se conservan paletas/fuentes anteriores y preferencias ya guardadas de cada cuenta.
+- Pantalla negra, superficies oscuras y acento azul inspirados en las tres capturas del usuario. Doodle original local en SVG, cabecera y compositor de píldora, burbujas redondeadas, separadores de fecha y barra lateral con una sola conversación. No se inventan contactos, grupos ni llamadas.
+- Compositor con menú de fotos/videos y botón de voz que cambia a enviar al escribir; conserva stickers, citas, previsualización de medios y confirmación de envíos. Menú de adjuntos cierra con Escape y clic externo.
+- Navegación móvil funcional Chat/Ajustes. Ajustes en pantalla completa móvil con perfil circular y controles agrupados; barra de cierre sticky para continuar accesible durante scroll. Desktop conserva panel lateral/chat y diálogo de ajustes.
+
+### Voz (contrato v7)
+
+- `VoiceRecorder.tsx`: permiso real `getUserMedia({audio:true})` exclusivamente tras tocar el micrófono; MediaRecorder elige MP4/WebM/OGG compatible. Contador, parar, reproducción previa sin autoplay, envío explícito y cancelación. Se detiene automáticamente a 179 segundos para dejar margen frente al máximo real de 180 s del servidor; límite cliente de 10 MiB y rechazo de grabación vacía.
+- Cancelar, desmontar y `pagehide` liberan tracks y timers; cancelar durante un permiso pendiente también libera el stream si llega tarde. URLs blob se revocan al cambiar/salir. Errores legibles para permiso denegado, ausencia de micrófono, navegador no compatible y envío.
+- `MessageAudio.tsx`: audio con controles sin autoplay y duración del servidor; estado de error. Pendientes con audio sólo en memoria, reintento manual usando la misma clave y versión, y descarte tras versión obsoleta como medios existentes. Citas reconocen notas de voz; mensajes confirmados conservan enviado/leído y permisos de borrado actuales.
+- `api.ts` envía multipart `audio`, `clientMessageId`, `conversationVersion`, `body`, `replyToMessageId` cuando corresponda, cookies y CSRF; valida respuesta por el schema común. No nuevos endpoints inventados ni datos de grabación en localStorage/logs.
+
+### Fondo personal
+
+- `background.ts` guarda por ID de cuenta en IndexedDB sólo el preset y, si el usuario la eligió, la imagen local. Presets Trazos nocturnos/Negro/Azul profundo/Ciruela/Arena, imagen JPEG/PNG/WebP de hasta 5 MiB y 16 millones de píxeles, restablecer, vista previa y Guardar/Cancelar.
+- La UI explica que el fondo sólo se aplica a la cuenta en este navegador; no se sube la imagen ni se envía al contacto. Se reemplaza el registro anterior y se revocan URLs blob. Error de escritura no declara éxito; cancelar conserva el fondo actual. Cambiar de cuenta muestra el fondo predeterminado mientras carga la preferencia de esa cuenta, sin mostrar el fondo de la anterior.
+
+### Archivos de esta entrega
+
+Modificados: `index.html`, `src/App.tsx`, `src/index.css`, `src/themes.css`, `src/lib/{api,api.test,fonts,themes,reply,store}.ts`, `src/hooks/useChat.ts`, `src/components/{AvatarView,ChatPanel,Composer,MessageBubble,ProfileDialog,Sidebar,ThemePicker}.tsx`.
+
+Nuevos: `src/assets/backgrounds/doodle.svg`, `src/lib/background.ts`, `src/components/{BackgroundPicker,VoiceRecorder,MessageAudio}.tsx`, `src/components/{background,voice}.test.tsx`, `src/hooks/audio.test.tsx`.
+
+### Verificación ejecutada
+
+- `npm run typecheck -w @private-chat/web`: OK.
+- `npm test -w @private-chat/web`: **16 archivos, 99/99 pruebas OK**. Pruebas nuevas: solicitud explícita de micrófono, cancelación/permiso tardío/desmontaje, rechazo de permiso, cutoff/datos máximos, preview/envío separado, cita/reproductor, multipart CSRF/cookies, reintentos/versiones de audio, fondo confirmar/cancelar/reset/errores/persistencia por cuenta.
+- `npm run build -w @private-chat/web`: TypeScript + Vite OK.
+- `git diff --check -- apps/web docs/handoffs/frontend.md`: OK.
+- Aviso de jsdom: `Not implemented: HTMLMediaElement's play() method` procede de una prueba existente de sonido; la suite completa termina sin fallos.
+
+Pruebas frontend usan doubles de MediaRecorder/getUserMedia/IndexedDB para verificar lifecycle y flujo; no se presentan como captura física de micrófono ni almacenamiento del navegador real. El principal informó QA real en Brave contra PostgreSQL: chat y ajustes móviles correctos, preset Azul profundo guardado y persistente tras recargar. La comprobación integral del API/DB, revisión desktop y despliegue pertenecen al principal; este agente no los ejecutó. Grabación/reproducción física en iPhone/Safari y comprobación del teclado iOS real quedan pendientes de prueba en dispositivo. No se declara E2EE.
+
+Dependencias nuevas: ninguna. La producción requiere el contrato/API v7 y permiso HTTP de micrófono del propio dominio; el principal coordina migración, CSP `media-src 'self' blob:`, proxy y despliegue. No se generaron commits ni push desde este componente.
+
+### Corrección del fondo doodle bajo CSP de producción — 2026-10-12
+
+La QA del principal detectó que Vite inlineaba el SVG pequeño como `data:image/svg+xml`, bloqueado por la CSP existente `img-src 'self' blob:`. Se cambió exclusivamente la referencia de `src/index.css` a `doodle.svg?no-inline`; la CSP conserva su política.
+
+`npm run build -w @private-chat/web` (TypeScript + Vite) y `git diff --check -- apps/web/src/index.css` → OK. Inspección programática del CSS compilado confirma `url(/assets/doodle-DZqywCZc.svg)`, el archivo SVG de 1466 bytes existe en `dist/assets`, y hay **cero `data:image/svg`** en el CSS generado. Artefactos finales: `index-DuKMce5h.css`, `index-C-nHS7hw.js`. No se repitió la suite funcional porque el cambio sólo modifica la emisión del asset; despliegue web y revisión bajo CSP corresponden al principal.

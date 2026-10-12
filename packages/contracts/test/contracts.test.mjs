@@ -5,6 +5,7 @@ import {
   MessagesQuerySchema, MessagesPageSchema, NewPasswordSchema, ChangePasswordInputSchema,
   MessageDeletedEventSchema, TypingSetInputSchema, ApiErrorSchema, MessageSchema,
   SavePushSubscriptionInputSchema, DeletePushSubscriptionInputSchema, VapidKeyResponseSchema,
+  API_ROUTES, MAX_CHAT_AUDIO_SECONDS,
 } from '../dist/index.js';
 
 const id = '11111111-1111-4111-8111-111111111111';
@@ -62,6 +63,23 @@ test('contraseñas conservan espacios y no permiten reutilizar la actual', () =>
   assert.equal(NewPasswordSchema.parse(password), password);
   assert.equal(NewPasswordSchema.safeParse('corta').success, false);
   assert.equal(ChangePasswordInputSchema.safeParse({ currentPassword: password, newPassword: password }).success, false);
+});
+
+test('voz v7: URL privada y duración validada, un único adjunto, citas compatibles', () => {
+  const base = { id, clientMessageId: id, senderId: id, sequence: 1, body: '🎤 Nota de voz', createdAt: '2026-10-12T12:00:00.000Z' };
+  const audio = { audioUrl: API_ROUTES.messageAudio(id), audioDurationSeconds: 2.75 };
+  assert.equal(MessageSchema.safeParse({ ...base, ...audio }).success, true);
+  assert.equal(MessageSchema.safeParse({ ...base, ...audio, replyTo: { messageId: id, senderId: id, body: base.body, ...audio } }).success, true);
+  for (const patch of [
+    { audioUrl: 'https://example.com/voice.m4a' },
+    { audioDurationSeconds: 0 }, { audioDurationSeconds: MAX_CHAT_AUDIO_SECONDS + 1 },
+    { audioDurationSeconds: NaN }, { audioDurationSeconds: Infinity },
+    { audioDurationSeconds: undefined },
+    { photoUrl: `/api/messages/${id}/photo` }, { videoUrl: `/api/messages/${id}/video` },
+    { audioHash: 'private' }, { audioData: 'private' },
+  ]) assert.equal(MessageSchema.safeParse({ ...base, ...audio, ...patch }).success, false);
+  assert.equal(MessageSchema.safeParse({ ...base, audioDurationSeconds: 2 }).success, false);
+  assert.equal(MessageSchema.safeParse({ ...base, replyTo: { messageId: id, senderId: id, body: base.body, audioUrl: audio.audioUrl } }).success, false);
 });
 
 test('páginas y eventos de borrado exigen versión y no aceptan cuerpos de mensajes', () => {

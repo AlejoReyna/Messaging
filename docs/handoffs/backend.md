@@ -48,3 +48,23 @@ Ninguna nueva: todo está en `apps/api/package.json`. Sólo falta que el princip
 6. `GRANT CONNECT ON DATABASE` usa `DATABASE_NAME`; `APP_DB_ROLE` permite renombrar el rol runtime si infra lo requiere.
 7. Credenciales locales de prueba (`pctest`, `private_chat_app`, secretos en `/tmp/.../opencode`): desechables, sólo para verificación local; la instalación real pedirá sus contraseñas por terminal/archivos secretos.
 8. Node local 26 vs 24 LTS del contrato, y PG local 16 vs 18: el despliegue debe validar contra las versiones fijadas.
+
+
+## Entrega 2026-10-12 — notas de voz (contrato v7)
+
+El usuario autorizó mensajes de voz. `apps/api/src/audio.ts` valida bytes reales y streams con FFprobe: admite MP4/AAC de Safari, WebM/Opus de Chrome (también sin cabecera de duración), Ogg/Opus de Firefox, MP3 y WAV; rechaza todo stream que no sea el único audio. Normaliza con FFmpeg a M4A/AAC mono 48 kHz y 96 kbps, descarta metadatos/capítulos y verifica la duración real normalizada (máximo 180 s). Se aplica máximo de subida/salida de 10 MiB, tiempo de FFprobe 15 s y FFmpeg 60 s, dos threads y eliminación de temporales en éxito/error. La subida de audio y video comparte una única reserva previa a la lectura para impedir decodificaciones simultáneas.
+
+Archivos de esta entrega:
+
+- `apps/api/src/http/app.ts`: `POST /api/messages/audio`, multipart estricto (archivo audio, clave, versión y caption/cita opcionales), CSRF/Origin/sesión, limitación 6 intentos/minuto/cuenta. No acepta metadatos de duración ni adjuntos adicionales. `GET /api/messages/:messageId/audio` autenticado, `audio/mp4`, `no-store`, `nosniff`, rangos simples 200/206/416.
+- `apps/api/prisma/schema.prisma` y `prisma/migrations/0007_message_audio/migration.sql`: columnas privadas de bytes/hash/duración; constraints de tamaño/hash/duración y exclusión foto/video/audio. No cambia datos existentes. Grants sobre `messages` ya abarcan las columnas nuevas; no hay npm deps nuevas.
+- DTO/historial/eventos/citas incluyen sólo URL privada y duración. Idempotencia compara body/hash original de audio/tipo/cita; retry idéntico devuelve el mismo mensaje. Borrados, tombstones, journal y reconciliación usan el flujo existente de filas, incluyendo bytes de audio.
+- `apps/api/test/audio-fixtures.ts`, `test/unit/audio.test.ts` y `test/integration/audio.test.ts`: fixtures FFmpeg reales, normalización de cinco formatos, WebM sin duración, boundary Opus de 180 s, metadatos eliminados, duración/bytes/video encubierto/corruptos rechazados, limpieza y rangos. Integración cubre dos cuentas/sockets/historial/lectura/sesión revocada, retry/cambio tipo/cita, CSRF/Origin/metadata arbitraria/segundo adjunto, borrado y restauración/vaciado.
+
+Comandos ejecutados en esta entrega:
+
+- `npm run typecheck -w @private-chat/api`: OK, con Prisma Client generado por principal.
+- `npm run build -w @private-chat/api`: OK.
+- `npm run test -w @private-chat/api`: 39 pruebas unitarias, 39 pass / 0 fail (incluye FFmpeg/FFprobe reales).
+
+Verificación posterior ejecutada por el principal: `npm run test:integration --workspace @private-chat/api` pasó la suite completa contra PostgreSQL privado en loopback:55432, incluidos los cuatro casos de audio; `npm run test:runtime` pasó 3/3, con audio mediante rol SQL runtime y flujo real de dos usuarios. Build y typecheck de raíz también pasaron. Este modelo no ejecutó esas suites para evitar carreras con la base compartida; los resultados son los comunicados por el principal. No se declara despliegue VPS verificado. Dependencias de sistema: FFmpeg y FFprobe, ya usadas por video; ninguna dependencia adicional. Rate limit y reserva de conversión son por proceso, de acuerdo con la única instancia del MVP.

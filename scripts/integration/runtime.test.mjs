@@ -148,6 +148,53 @@ test('dos usuarios con rol runtime: permisos SQL, API real y Socket.IO WebSocket
     assert.equal((await member.request('DELETE', `/api/messages/${photoMessage.id}`, { body: { conversationVersion: 3 } })).status, 200);
     assert.equal(await runtimeDb.message.count(), 0);
     assert.equal((await admin.request('GET', photoMessage.photoUrl)).status, 404);
+    // Voz atravesando el rol SQL runtime de producción y ambas sesiones reales.
+    const voiceBytes = execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.5', '-f', 'wav', 'pipe:1']);
+    const voiceKey = crypto.randomUUID();
+    function voiceForm() {
+      const form = new FormData();
+      form.append('audio', new Blob([voiceBytes], { type: 'audio/wav' }), 'qa.wav');
+      form.append('clientMessageId', voiceKey);
+      form.append('conversationVersion', '4');
+      return form;
+    }
+    const voiceEvent = event(adminSocket, 'message:created');
+    const voiceResult = await member.request('POST', '/api/messages/audio', { rawBody: voiceForm() });
+    assert.equal(voiceResult.status, 201);
+    const voice = MessageCreatedEventSchema.parse(voiceResult.json).message;
+    assert.ok(voice.audioUrl);
+    assert.ok(voice.audioDurationSeconds > 0 && voice.audioDurationSeconds <= 180);
+    assert.equal(MessageCreatedEventSchema.parse(await voiceEvent).message.audioUrl, voice.audioUrl);
+    const voiceRetry = await member.request('POST', '/api/messages/audio', { rawBody: voiceForm() });
+    assert.equal(voiceRetry.status, 200);
+    assert.equal(voiceRetry.json.message.id, voice.id);
+    assert.equal(await runtimeDb.message.count(), 1);
+    assert.equal((await fetch(`${baseUrl}${voice.audioUrl}`)).status, 401);
+    const voiceDownload = await fetch(`${baseUrl}${voice.audioUrl}`, { headers: { cookie: admin.cookies, Range: 'bytes=0-15' } });
+    assert.equal(voiceDownload.status, 206);
+    assert.equal(voiceDownload.headers.get('content-type'), 'audio/mp4');
+    assert.equal(voiceDownload.headers.get('cache-control'), 'no-store');
+    assert.equal((await voiceDownload.arrayBuffer()).byteLength, 16);
+    const quotedVoice = await admin.request('POST', '/api/messages', { body: { clientMessageId: crypto.randomUUID(), body: 'Respuesta QA a una nota de voz', conversationVersion: 4, replyToMessageId: voice.id } });
+    assert.equal(quotedVoice.status, 201);
+    assert.equal(MessageCreatedEventSchema.parse(quotedVoice.json).message.replyTo.audioUrl, voice.audioUrl);
+    memberSocket.disconnect();
+    memberSocket = await connect(member);
+    const voiceHistory = await member.request('GET', '/api/messages');
+    assert.equal(voiceHistory.status, 200);
+    assert.equal(voiceHistory.json.messages.find((item) => item.id === voice.id).audioUrl, voice.audioUrl);
+    const voiceReadEvent = event(adminSocket, 'read:updated');
+    const voiceRead = await member.request('POST', '/api/conversation/read', { body: { lastReadSequence: quotedVoice.json.message.sequence, conversationVersion: 4 } });
+    assert.equal(voiceRead.status, 200);
+    assert.equal((await voiceReadEvent).lastReadSequence, quotedVoice.json.message.sequence);
+    assert.equal((await member.request('DELETE', `/api/messages/${quotedVoice.json.message.id}`, { body: { conversationVersion: 4 } })).status, 403);
+    const voiceDeletionEvent = event(adminSocket, 'message:deleted');
+    assert.equal((await member.request('DELETE', `/api/messages/${voice.id}`, { body: { conversationVersion: 4 } })).status, 200);
+    assert.equal(MessageDeletedEventSchema.parse(await voiceDeletionEvent).messageId, voice.id);
+    assert.equal((await admin.request('GET', voice.audioUrl)).status, 404);
+    assert.equal((await runtimeDb.message.findUnique({ where: { id: voice.id } })), null);
+    const afterVoiceDelete = await admin.request('GET', '/api/messages');
+    assert.equal(afterVoiceDelete.json.messages[0].replyTo, undefined);
     // La autorización se consulta de nuevo al recibir una acción por socket.
     await server.db.session.updateMany({ where: { userId: server.users.memberId }, data: { revokedAt: new Date() } });
     const disconnected = event(memberSocket, 'disconnect');
@@ -155,6 +202,7 @@ test('dos usuarios con rol runtime: permisos SQL, API real y Socket.IO WebSocket
     await disconnected;
     assert.equal(memberSocket.connected, false);
     assert.equal(adminSocket.connected, true);
+    assert.equal((await member.request('GET', voice.audioUrl)).status, 401);
   } finally {
     adminSocket?.disconnect(); memberSocket?.disconnect();
     await hub?.close().catch(() => undefined);

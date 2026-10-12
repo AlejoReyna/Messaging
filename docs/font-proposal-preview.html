@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Propuesta 15 fuentes — Private Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&family=Quicksand:wght@400;500;600;700&family=Manrope:wght@400;600;700;800&family=Outfit:wght@400;600;700&family=Rubik:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Lexend:wght@400;500;600;700&family=Sora:wght@400;600;700;800&family=Caveat:wght@500;600;700&family=Kalam:wght@400;700&family=Baloo+2:wght@500;600;700;800&family=Fredoka:wght@400;500;600;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f3f3f1; color: #242624; }
+  header { max-width: 1100px; margin: 0 auto; padding: 32px 20px 8px; }
+  header h1 { margin: 0 0 8px; font-size: 26px; }
+  header p { margin: 4px 0; color: #636761; font-size: 14px; line-height: 1.5; }
+  .grid { max-width: 1100px; margin: 0 auto; padding: 16px 20px 48px; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .card { background: #fff; border: 1px solid #deded9; border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .card.current { border: 2px solid #343934; }
+  .num { font-size: 12px; font-weight: 700; color: #fff; background: #343934; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 999px; }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #636761; }
+  .fontname { font-size: 22px; margin: 0; }
+  .why { font-size: 13px; color: #636761; line-height: 1.5; margin: 0; font-family: Inter, sans-serif !important; }
+  .sample-title { font-size: 24px; font-weight: 700; margin: 6px 0 0; line-height: 1.2; }
+  .sample-ui { font-size: 15px; line-height: 1.45; }
+  .bubbles { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .b { max-width: 90%; padding: 8px 12px; border-radius: 16px; font-size: 15px; line-height: 1.4; }
+  .b.them { background: #efeff5; align-self: flex-start; border-bottom-left-radius: 6px; }
+  .b.me { background: #5b5bd6; color: #fff; align-self: flex-end; border-bottom-right-radius: 6px; }
+  .meta { font-size: 13px; color: #72766f; }
+  .alphabet { font-size: 15px; color: #242624; }
+  footer { max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; font-size: 13px; color: #636761; }
+  .f-inter { font-family: Inter, sans-serif; }
+  .f-nunito { font-family: Nunito, sans-serif; }
+  .f-poppins { font-family: Poppins, sans-serif; }
+  .f-dmsans { font-family: "DM Sans", sans-serif; }
+  .f-quicksand { font-family: Quicksand, sans-serif; }
+  .f-manrope { font-family: Manrope, sans-serif; }
+  .f-outfit { font-family: Outfit, sans-serif; }
+  .f-rubik { font-family: Rubik, sans-serif; }
+  .f-jakarta { font-family: "Plus Jakarta Sans", sans-serif; }
+  .f-lexend { font-family: Lexend, sans-serif; }
+  .f-sora { font-family: Sora, sans-serif; }
+  .f-caveat { font-family: Caveat, cursive; }
+  .f-caveat .sample-ui, .f-caveat .b, .f-caveat .alphabet { font-size: 19px; }
+  .f-kalam { font-family: Kalam, cursive; }
+  .f-baloo { font-family: "Baloo 2", sans-serif; }
+  .f-fredoka { font-family: Fredoka, sans-serif; }
+  .f-patrick { font-family: "Patrick Hand", cursive; }
+  .f-patrick .sample-ui, .f-patrick .b { font-size: 17px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Propuesta: 15 fuentes para Private Chat</h1>
+  <p>Fuente actual: <strong>Patrick Hand</strong> (manuscrita, informal). Todas las propuestas son Google Fonts con licencia OFL, con ñ, tildes y soporte para autohospedar en el VPS (sin CDN en producción).</p>
+  <p>Cómo evaluar: legibilidad en burbuja pequeña, tono íntimo de 2 personas, y contraste con los 11 temas claro/oscuro. Elige <strong>3</strong> y las agrego a Ajustes.</p>
+</header>
+<main class="grid">
+
+  <section class="card current f-patrick">
+    <span class="num">0</span>
+    <p class="tag">Actual — manuscrita</p>
+    <h2 class="fontname">Patrick Hand</h2>
+    <p class="why">Referencia actual. Informal y cercana, pero cansa en textos largos y se ve poco profesional en títulos.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-inter">
+    <span class="num">1</span>
+    <p class="tag">Sans neutra · legibilidad</p>
+    <h2 class="fontname">Inter</h2>
+    <p class="why">La más legible en UI pequeña. Neutra, profesional. Ideal si quieres un chat serio que no canse.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-nunito">
+    <span class="num">2</span>
+    <p class="tag">Redondeada · match referencia</p>
+    <h2 class="fontname">Nunito</h2>
+    <p class="why">Redondeada y amable, la más cercana al mock de reference.png. Excelente en burbujas y nombres.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-poppins">
+    <span class="num">3</span>
+    <p class="tag">Geométrica · titulares</p>
+    <h2 class="fontname">Poppins</h2>
+    <p class="why">Geométrica moderna, titulares fuertes como el “Johan” de la referencia. Muy popular en chat apps.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-dmsans">
+    <span class="num">4</span>
+    <p class="tag">Humanista · móvil</p>
+    <h2 class="fontname">DM Sans</h2>
+    <p class="why">Humanista, excelente a 14–16px en móvil. Tono cálido sin ser infantil.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-quicksand">
+    <span class="num">5</span>
+    <p class="tag">Redondeada · íntima</p>
+    <h2 class="fontname">Quicksand</h2>
+    <p class="why">Redondeada ligera, íntima y dulce. Ideal para chat de 2 personas, da aire romántico/amable.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-manrope">
+    <span class="num">6</span>
+    <p class="tag">Geométrica · modo oscuro</p>
+    <h2 class="fontname">Manrope</h2>
+    <p class="why">Moderna y ancha, rinde muy bien en modo oscuro (Dracula, Tokyo, Nord). Muy legible.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-outfit">
+    <span class="num">7</span>
+    <p class="tag">Geométrica · nombres/bold</p>
+    <h2 class="fontname">Outfit</h2>
+    <p class="why">Geométrica suave, su bold es muy bueno para nombres y encabezados sin gritar.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-rubik">
+    <span class="num">8</span>
+    <p class="tag">Redondeada · carácter</p>
+    <h2 class="fontname">Rubik</h2>
+    <p class="why">Cálida con carácter, esquinas levemente redondeadas. Da personalidad sin perder seriedad.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-jakarta">
+    <span class="num">9</span>
+    <p class="tag">Sans moderna · UI densa</p>
+    <h2 class="fontname">Plus Jakarta Sans</h2>
+    <p class="why">Diseñada para UI densa. Mantiene claridad con mucho texto y listas largas de mensajes.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-lexend">
+    <span class="num">10</span>
+    <p class="tag">Accesible · lectura</p>
+    <h2 class="fontname">Lexend</h2>
+    <p class="why">Optimizada para lectura y accesibilidad (dislexia). Espaciado amplio, cero fatiga.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-sora">
+    <span class="num">11</span>
+    <p class="tag">Técnica · temas oscuros</p>
+    <h2 class="fontname">Sora</h2>
+    <p class="why">Técnica/futurista, combina con Dracula y Tokyo Night. Buena si quieres un aire más tech.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-caveat">
+    <span class="num">12</span>
+    <p class="tag">Manuscrita · evolución actual</p>
+    <h2 class="fontname">Caveat</h2>
+    <p class="why">Manuscrita elegante, evolución directa de Patrick Hand pero más fluida y legible.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-kalam">
+    <span class="num">13</span>
+    <p class="tag">Manuscrita · legible</p>
+    <h2 class="fontname">Kalam</h2>
+    <p class="why">Manuscrita gruesa y juguetona, más legible que Patrick Hand en pantallas pequeñas.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-baloo">
+    <span class="num">14</span>
+    <p class="tag">Redondeada gruesa · titulares</p>
+    <h2 class="fontname">Baloo 2</h2>
+    <p class="why">Redondeada gruesa, perfecta para nombres y titulares. En cuerpo conviene usar su peso medio.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-fredoka">
+    <span class="num">15</span>
+    <p class="tag">Redondeada · burbujas</p>
+    <h2 class="fontname">Fredoka</h2>
+    <p class="why">Redondeada divertida, hace que las burbujas se vean suaves y modernas. Muy “chat app”.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="sample-ui"><div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div></div>
+    <p class="alphabet meta">AaBbCcDdEeFfGg Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+</main>
+<footer>
+  <p><strong>Mis 3 recomendadas</strong> para tu diseño (redondeado + íntimo + legible): <strong>2 Nunito</strong>, <strong>5 Quicksand</strong>, <strong>8 Rubik</strong>. Alternativa seria: 1 Inter, 4 DM Sans, 6 Manrope.</p>
+  <p>Respóndeme con los 3 números/nombres y las agrego a Ajustes junto a Patrick Hand (con selector, persistencia por cuenta y autohospedadas).</p>
+</footer>
+</body>
+</html>

@@ -65,3 +65,8 @@ Push `7964eff` publicado por CI/CD: citas en producción verificadas (web con UI
 ## Notificaciones push — 2026-10-11
 
 Contrato v5: PWA instalada en inicio (manifiesto, iconos, `/sw.js` sin caché) + Web Push VAPID con push vacío y aviso genérico “Nuevo mensaje” (sin texto, sin remitente). Endpoints `GET /api/push/vapid-key`, `POST/DELETE /api/push/subscriptions` (tope 10 por cuenta, reasignación del endpoint, borrado sólo propio); el envío dispara a la otra cuenta sin bloquear y poda 404/410. Claves por operador con `scripts/generate-vapid.mjs` (`VAPID_PUBLIC_KEY` + `VAPID_SUBJECT` en entorno, privada en `.secrets/`, ignorada por git). Sin Apple Developer. `npm run verify:local` verde (contratos 8/8, base 6/6, backend 40/40, frontend 71/71, API PostgreSQL 57/57, runtime 3/3). Publicación por CI/CD pendiente; tras el deploy hay que definir VAPID en el VPS y activar en Ajustes de cada iPhone (iOS 16.4+, instalada desde inicio).
+
+
+## Actualización 2026-10-12
+
+Contrato v7: UI Telegram Dark, fotos/videos/notas de voz privadas y fondo personal local; llamadas y E2EE siguen fuera de alcance. Build/types y pruebas reales PostgreSQL de ambos usuarios aprobados. Detalles actuales de verificación y despliegue en [el informe Telegram UI](handoffs/telegram-ui.md), que reemplaza las limitaciones históricas de alcance anteriores.

@@ -4,7 +4,7 @@
         X-Content-Type-Options "nosniff"
         Referrer-Policy "no-referrer"
         X-Frame-Options "DENY"
-        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Permissions-Policy "camera=(), microphone=(self), geolocation=()"
         Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self' wss://{$DOMAIN}; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     }
 
@@ -12,6 +12,14 @@
     handle @videoUpload {
         request_body {
             max_size 51MiB
+        }
+        reverse_proxy api:3000
+    }
+
+    @audioUpload path /api/messages/audio
+    handle @audioUpload {
+        request_body {
+            max_size 11MiB
         }
         reverse_proxy api:3000
     }

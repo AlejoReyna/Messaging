@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Propuesta 2 — Serif ligeras + Inter/Nunito</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Nunito:wght@400;600;700&family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&family=Lora:wght@400;500;600&family=Noto+Serif:wght@400;500;600&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f3f3f1; color: #242624; }
+  header { max-width: 1100px; margin: 0 auto; padding: 32px 20px 8px; }
+  header h1 { margin: 0 0 8px; font-size: 24px; }
+  header p { margin: 4px 0; color: #636761; font-size: 14px; line-height: 1.55; }
+  .note { background: #fff8e6; border: 1px solid #e8d9a8; border-radius: 14px; padding: 12px 14px; font-size: 13px; color: #5c4d1a; line-height: 1.5; }
+  .grid { max-width: 1100px; margin: 0 auto; padding: 16px 20px 48px; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .card { background: #fff; border: 1px solid #deded9; border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .card.picked { border: 2px solid #2f6f4e; }
+  .num { font-size: 12px; font-weight: 700; color: #fff; background: #343934; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 999px; }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #636761; font-family: Inter, sans-serif !important; }
+  .fontname { font-size: 22px; margin: 0; font-weight: 400; }
+  .why { font-size: 13px; color: #636761; line-height: 1.5; margin: 0; font-family: Inter, sans-serif !important; }
+  .sample-title { font-size: 26px; font-weight: 400; margin: 6px 0 0; line-height: 1.2; }
+  .btime { font-size: 13px; opacity: .7; font-family: Inter, sans-serif !important; }
+  .bubbles { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .b { max-width: 92%; padding: 8px 12px; border-radius: 16px; font-size: 16.5px; line-height: 1.45; }
+  .b.them { background: #efeff5; align-self: flex-start; border-bottom-left-radius: 6px; }
+  .b.me { background: #5b5bd6; color: #fff; align-self: flex-end; border-bottom-right-radius: 6px; }
+  .alphabet { font-size: 15px; color: #555; }
+  footer { max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; font-size: 13px; color: #636761; font-family: Inter, sans-serif; }
+  .f-inter { font-family: Inter, sans-serif; } .f-inter .fontname { font-weight: 700; } .f-inter .sample-title { font-weight: 700; font-size: 22px; } .f-inter .b { font-size: 15px; }
+  .f-nunito { font-family: Nunito, sans-serif; } .f-nunito .fontname { font-weight: 800; } .f-nunito .sample-title { font-weight: 800; font-size: 24px; } .f-nunito .b { font-size: 15px; }
+  .f-news { font-family: Newsreader, Georgia, serif; font-weight: 400; }
+  .f-source { font-family: "Source Serif 4", Georgia, serif; }
+  .f-lora { font-family: Lora, Georgia, serif; }
+  .f-noto { font-family: "Noto Serif", Georgia, serif; }
+  .f-pt { font-family: "PT Serif", Georgia, serif; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Segunda vuelta: tus 2 elegidas + 5 serif ligeras estilo Times</h1>
+  <p>Ya anotadas: <strong>Inter</strong> y <strong>Nunito</strong>. Abajo 5 serif finas, legibles en burbuja, todas OFL y autohospedables (a diferencia de Times New Roman, que es propietaria de Monotype).</p>
+  <div class="note"><strong>Sobre “Anthropic Sans”:</strong> es una tipografía propietaria encargada por Anthropic al diseñador Chester Jenkins (fundición BSPK, identidad por Geist). No tiene licencia abierta; los .ttf que circulan en fontiko/jsDelivr son copias no oficiales. No puedo incluirla en el proyecto sin riesgo legal. Lo más cercano en espíritu (grotesca cálida) ya lo tienes con <strong>Inter</strong>, y en serif editorial con <strong>Newsreader / Source Serif 4</strong> de abajo. Si quieres, la sustituimos por una de estas.</div>
+</header>
+<main class="grid">
+
+  <section class="card picked f-inter">
+    <span class="num">✓</span><p class="tag">Ya elegida · sans neutra</p>
+    <h2 class="fontname">Inter</h2>
+    <p class="why">Anotada. Máxima legibilidad en mensajes largos y en los 11 temas.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div>
+    <p class="alphabet">AaBbCc Ññ ÁÉÍÓÚÜ ¿? ¡! 1234 <span class="btime">09:38 AM</span></p>
+  </section>
+
+  <section class="card picked f-nunito">
+    <span class="num">✓</span><p class="tag">Ya elegida · redondeada</p>
+    <h2 class="fontname">Nunito</h2>
+    <p class="why">Anotada. La más cercana al mock reference.png, amable en burbujas.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div>
+    <p class="alphabet">AaBbCc Ññ ÁÉÍÓÚÜ ¿? ¡! 1234 <span class="btime">09:38 AM</span></p>
+  </section>
+
+  <section class="card f-news">
+    <span class="num">A</span><p class="tag">Serif ligera · editorial (recomendada)</p>
+    <h2 class="fontname">Newsreader</h2>
+    <p class="why">Fina, moderna y editorial. Es la más cercana al tono “Anthropic Serif / Times fino” pero libre. Rinde muy bien en claro y oscuro. Mi favorita para tu pedido.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div>
+    <p class="alphabet">AaBbCcDdEeFf Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-source">
+    <span class="num">B</span><p class="tag">Serif ligera · lectura larga</p>
+    <h2 class="fontname">Source Serif 4</h2>
+    <p class="why">De Adobe, diseñada para texto largo. Trazo ligero como Times, pero con mejor pantalla a 15–16px. Muy segura.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div>
+    <p class="alphabet">AaBbCcDdEeFf Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-lora">
+    <span class="num">C</span><p class="tag">Serif ligera · cálida</p>
+    <h2 class="fontname">Lora</h2>
+    <p class="why">Serif con curvas suaves, íntima y cálida. Buena si quieres tono romántico sin caer en manuscrita.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div>
+    <p class="alphabet">AaBbCcDdEeFf Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-noto">
+    <span class="num">D</span><p class="tag">Serif ligera · gemela de Times</p>
+    <h2 class="fontname">Noto Serif</h2>
+    <p class="why">La gemela libre de Times: misma estructura y métricas, cobertura total de español y emojis sin saltos.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div>
+    <p class="alphabet">AaBbCcDdEeFf Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+  <section class="card f-pt">
+    <span class="num">E</span><p class="tag">Serif ligera · compacta</p>
+    <h2 class="fontname">PT Serif</h2>
+    <p class="why">Compacta como Times, ideal si hay muchos mensajes: caben más líneas sin perder elegancia.</p>
+    <p class="sample-title">Hola, Johan</p>
+    <div class="bubbles"><div class="b them">¿Revisaste el UI Brief.docx? 📎</div><div class="b me">Ok. Let me check 👍</div></div>
+    <p class="alphabet">AaBbCcDdEeFf Ññ ÁÉÍÓÚÜ ¿? ¡! 1234567890</p>
+  </section>
+
+</main>
+<footer>
+  <p><strong>Mi recomendación:</strong> A Newsreader + B Source Serif 4 como finalistas (una editorial, una segura). Si quieres trío serif completo: A + B + D.</p>
+  <p>Dime 1 (o 2) letras de esta lista para cerrar tus 3–4 fuentes finales. Ejempo: “me quedo con Inter, Nunito y A Newsreader”.</p>
+</footer>
+</body>
+</html>

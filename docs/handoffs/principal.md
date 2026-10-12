@@ -121,3 +121,8 @@ Petición del usuario: carita UwU en lineart al centro del historial vacío, ton
 
 - Push `7964eff` → CI verde → Deploy verde (pull --ff-only limpio, build api/web/bootstrap, bootstrap con migración 0004, up, `/api/ready` OK).
 - Verificación pública: VPS en `7964eff` limpio; web 200 con bundle nuevo ("Responder mensaje", "Cancelar respuesta"); `/api/ready` 200; columna `chat.messages.reply_to_message_id` presente; `api`/`web` recreados healthy, `postgres` intacto.
+
+
+## Telegram UI y voz — 2026-10-12
+
+UI oscura inspirada en Telegram, notas de voz privadas con preview/confirmación y fondos por cuenta/navegador implementados mediante contrato v7. Contratos 9/9, scripts 6/6, API unit 39/39, frontend 99/99; build y typecheck raíz OK. Suite PostgreSQL completa y runtime 3/3 con dos sesiones y rol SQL restringido ejecutados correctamente. Despliegue exclusivo del chat en Atlantic.net con migración aditiva, respaldo privado en servidor, API sana y validación/recarga del bloque Caddy; otros proyectos conservados. Detalles y límites de QA en [telegram-ui.md](telegram-ui.md). No se simuló un resultado de micrófono físico ni se insertaron mensajes de prueba en producción.
