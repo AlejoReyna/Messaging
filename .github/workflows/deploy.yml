@@ -61,8 +61,23 @@ jobs:
           # bloque de Caddy documentado más abajo. Nunca reiniciar el VPS.
           cd "$DEPLOY_DIR"
 
-          # Falla si el historial local divergió (el operador lo resuelve a mano).
-          git pull --ff-only origin main
+          # BEGIN DEPLOY GIT SYNC
+          # Comprobar divergencia antes de mover cambios locales del servidor.
+          git fetch origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "ERROR: historial del servidor divergente; requiere revisión manual" >&2
+            exit 1
+          fi
+
+          # Conservar copias manuales de código sin bloquear futuras entregas.
+          # No incluir archivos ignorados: .env, .secrets y datos permanecen.
+          # El stash se conserva y nunca se reaplica sobre el código publicado.
+          if [ -n "$(git status --porcelain)" ]; then
+            git stash push --include-untracked -m "pre-deploy $(date -u +%FT%TZ)"
+            echo "Código previo conservado en stash: $(git rev-parse refs/stash)"
+          fi
+          git merge --ff-only origin/main
+          # END DEPLOY GIT SYNC
 
           # Construir imágenes del chat (api, web interna :8080, bootstrap).
           $COMPOSE --profile tools build api web bootstrap

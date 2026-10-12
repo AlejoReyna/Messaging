@@ -92,8 +92,15 @@ A partir de aquí, cada `push` a `main` con CI verde despliega solo.
 
 ## 4. Qué hace el CD en el servidor
 
-1. `cd /opt/private-chat` y `git pull --ff-only origin main` (falla si hay
-   divergencia: el operador lo resuelve a mano, nunca con `reset --hard`).
+1. `cd /opt/private-chat`, `git fetch origin main` y comprobar que el historial
+   local es antecesor de `origin/main`. Si diverge, detenerse sin cambiar el
+   árbol de trabajo. Si hay código modificado o archivos no rastreados,
+   conservarlos con `git stash push --include-untracked`, registrar el ID y
+   ejecutar `git merge --ff-only origin/main`. Los archivos ignorados (`.env`,
+   `.secrets`, datos) permanecen intactos. El stash se conserva sin reaplicarlo:
+   producción usa el código publicado. Revisar copias con `git stash list`
+   y `git stash show --include-untracked <ID>`; recuperarlas en una copia
+   separada para no ensuciar de nuevo el checkout de producción.
 2. `docker compose -f compose.yaml -f compose.atlantic.yaml --profile tools build api web bootstrap`.
 3. `up -d postgres storage-init` (datos en volúmenes propios: `postgres_data`,
    `uploads`, `deletion_journal`).
