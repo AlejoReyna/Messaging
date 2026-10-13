@@ -1,42 +1,6 @@
-# Site block for the already-running Atlantic.net Caddy proxy.
-# Append this block to /opt/artisanalbrew/Caddyfile; do not replace that file.
+# Only this hostname changes; the shared proxy keeps its other sites.
 marthi.alexisrs.dev {
-    encode zstd gzip
-
-    header {
-        Strict-Transport-Security "max-age=31536000"
-        X-Content-Type-Options "nosniff"
-        Referrer-Policy "no-referrer"
-        X-Frame-Options "DENY"
-        Permissions-Policy "camera=(), microphone=(self), geolocation=()"
-        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self' wss://marthi.alexisrs.dev; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-    }
-
-    @videoUpload path /api/messages/video
-    handle @videoUpload {
-        request_body {
-            max_size 51MiB
-        }
-        reverse_proxy private-chat-api:3000
-    }
-
-    @audioUpload path /api/messages/audio
-    handle @audioUpload {
-        request_body {
-            max_size 11MiB
-        }
-        reverse_proxy private-chat-api:3000
-    }
-
-    @api path /api /api/* /socket.io /socket.io/*
-    handle @api {
-        request_body {
-            max_size 6MB
-        }
-        reverse_proxy private-chat-api:3000
-    }
-
-    handle {
-        reverse_proxy private-chat-web:8080
-    }
+    header Referrer-Policy "no-referrer"
+    header Cache-Control "no-store"
+    redir https://alexisrs.dev/merci-mon-cheri-to 302
 }

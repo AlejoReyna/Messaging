@@ -79,6 +79,15 @@ jobs:
           git merge --ff-only origin/main
           # END DEPLOY GIT SYNC
 
+          # Retired chat: apply only its redirect, keep all stored data,
+          # and never rebuild or restart the former application.
+          if [ -f infra/redirect-only ]; then
+            CADDY_CONTAINER="$CADDY_CONTAINER" CADDY_FILE="$CADDY_FILE" bash scripts/apply-chat-proxy.sh
+            $COMPOSE stop api web
+            echo "== redirect-only deploy OK =="
+            exit 0
+          fi
+
           # Optional assistant secrets stay on the VPS; preserve its overlay
           # across automatic deployments without sending credentials to CI.
           if [ -f compose.assistant.yaml ] && [ -f .secrets/kimi_api_key ]; then
@@ -121,23 +130,7 @@ jobs:
           fi
           echo "api ready OK"
 
-          # Actualizar sólo el bloque del chat. Validar antes de escribir.
-          # El Caddyfile del proxy es de root: la escritura es con sudo
-          # (el usuario de deploy tiene NOPASSWD). `cp` sobre el destino
-          # existente conserva el inode del bind mount del proxy.
-          CADDY_CANDIDATE=$(mktemp /tmp/private-chat-caddy.XXXXXX)
-          CADDY_PREVIOUS=$(mktemp /tmp/private-chat-caddy-before.XXXXXX)
-          cp "$CADDY_FILE" "$CADDY_PREVIOUS"
-          python3 scripts/render-chat-caddy.py "$CADDY_FILE" infra/Caddyfile.atlantic > "$CADDY_CANDIDATE"
-          docker exec -i "$CADDY_CONTAINER" caddy validate --config /dev/stdin --adapter caddyfile < "$CADDY_CANDIDATE"
-          sudo cp "$CADDY_CANDIDATE" "$CADDY_FILE"
-          if ! docker exec "$CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile; then
-            sudo cp "$CADDY_PREVIOUS" "$CADDY_FILE"
-            docker exec "$CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
-            rm -f "$CADDY_CANDIDATE" "$CADDY_PREVIOUS"
-            exit 1
-          fi
-          rm -f "$CADDY_CANDIDATE" "$CADDY_PREVIOUS"
+          CADDY_CONTAINER="$CADDY_CONTAINER" CADDY_FILE="$CADDY_FILE" bash scripts/apply-chat-proxy.sh
 
           $COMPOSE ps
           echo "== deploy OK =="

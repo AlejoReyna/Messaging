@@ -1,0 +1,3 @@
+This project now only maintains the farewell redirect.
+Do not build or start the chat API or web service during deployment.
+Keep its database, volumes, backups and private files intact.
