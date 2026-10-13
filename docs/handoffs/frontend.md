@@ -1,5 +1,12 @@
 # Informe frontend — chat web privado (@private-chat/web)
 
+## Ocultar opción de notificaciones — 2026-10-12
+
+- Solicitud: desactivar la visualización del bloque «Notificaciones en este iPhone» de la captura.
+- Archivo: `apps/web/src/components/ProfileDialog.tsx`; se retiraron el montaje de `PushSettings` y su importación. El bloque completo deja de aparecer en Ajustes para ambas cuentas, en móvil y escritorio. Las suscripciones existentes y el servicio push se conservan.
+- Verificación ejecutada: `npm run build --workspace @private-chat/web` → TypeScript y Vite OK (aviso existente de chunk >500 kB); `git diff --check` → OK.
+- Dependencias nuevas: ninguna. Sin cambios en API ni DTO, sin subagentes. Cambio local; no se ejecutó despliegue ni prueba en iPhone real.
+
 ## Ajuste posterior
 
 - Se quitó del pie del chat el aviso sobre acceso del administrador al historial,
