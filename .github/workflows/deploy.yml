@@ -79,6 +79,12 @@ jobs:
           git merge --ff-only origin/main
           # END DEPLOY GIT SYNC
 
+          # Optional assistant secrets stay on the VPS; preserve its overlay
+          # across automatic deployments without sending credentials to CI.
+          if [ -f compose.assistant.yaml ] && [ -f .secrets/kimi_api_key ]; then
+            COMPOSE="$COMPOSE -f compose.assistant.yaml"
+          fi
+
           # Construir imágenes del chat (api, web interna :8080, bootstrap).
           $COMPOSE --profile tools build api web bootstrap
 

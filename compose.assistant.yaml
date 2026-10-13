@@ -1,0 +1,19 @@
+# Optional overlay: server-only credentials and personal context.
+# Apply together with the existing production overlays.
+services:
+  api:
+    environment:
+      ASSISTANT_ENABLED: ${ASSISTANT_ENABLED:-true}
+      ASSISTANT_AUTO_REPLY_ENABLED: ${ASSISTANT_AUTO_REPLY_ENABLED:-true}
+      ASSISTANT_PROVIDER: ${ASSISTANT_PROVIDER:-moonshot}
+      ASSISTANT_API_KEY_FILE: /run/secrets/assistant_api_key
+      ASSISTANT_CONTEXT_FILE: /run/secrets/assistant_context
+    secrets:
+      - assistant_api_key
+      - assistant_context
+
+secrets:
+  assistant_api_key:
+    file: ./.secrets/kimi_api_key
+  assistant_context:
+    file: ${ASSISTANT_CONTEXT_HOST_FILE:?Define un archivo privado fuera del repositorio}

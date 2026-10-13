@@ -64,12 +64,16 @@ import {
   type PushFetchFn,
 } from "../push.js";
 import { RealtimeHub } from "../realtime.js";
+import { AutoReply, assistantHistoryTurn, assistantMessageKey, type ReplySnapshot } from "../auto-reply.js";
+import type { AssistantFetch } from "../assistant.js";
+import { parseAssistantTestCommand, ASSISTANT_TEST_USAGE } from "../assistant-test-command.js";
 
 export interface BuildAppOptions {
   config: AppConfig;
   db: PrismaClient;
   /** Transporte push inyectable (pruebas). Por defecto fetch al push service. */
   pushFetchFn?: PushFetchFn;
+  assistantFetchFn?: AssistantFetch;
 }
 
 interface AuthenticatedContext {
@@ -195,6 +199,62 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     limits: { fileSize: MAX_AVATAR_BYTES, files: 1, fields: 10 },
   });
   app.decorate("hub", null);
+  const assistantRate = new MemoryRateLimiter({ maxAttempts: 10, windowMs: 60_000 });
+  const autoReply = config.assistant?.enabled ? new AutoReply(config.assistant, {
+    snapshot: async (trigger, version) => db.$transaction(async (tx): Promise<ReplySnapshot | null> => {
+      const conv = await lockConversation(tx);
+      if (conv.lastSequence !== trigger.sequence || conv.version !== version) return null;
+      const source = await tx.message.findUnique({ where: { id: trigger.id }, select: messageSelect });
+      if (!source || source.editedAt || source.photoHash || source.videoHash || source.audioHash ||
+        source.body.startsWith("[sticker:")) return null;
+      const users = await tx.user.findMany({ select: { id: true, role: true, slot: true } });
+      const admin = users.find(user => user.slot === 1 && user.role === "admin");
+      const member = users.find(user => user.slot === 2 && user.role === "member");
+      if (!admin || !member) return null;
+      const test = parseAssistantTestCommand(source.body);
+      if (test.kind === "invalid") return null;
+      if (test.kind === "test") {
+        if (source.senderId !== member.id && source.senderId !== admin.id) return null;
+      } else if (source.senderId !== member.id || config.assistant?.autoReplyEnabled === false) return null;
+      const key = { senderId: admin.id, clientMessageId: assistantMessageKey(source.id) };
+      if (await tx.message.findUnique({ where: { senderId_clientMessageId: key }, select: { id: true } }) ||
+        await tx.messageTombstone.findUnique({ where: { senderId_clientMessageId: key }, select: { messageId: true } })) return null;
+      if (!assistantRate.take(source.senderId)) return null;
+      const history = await tx.message.findMany({ where: { conversationId: 1 },
+        orderBy: { sequence: "desc" }, take: 24, select: messageSelect });
+      return { triggerId: source.id, version: conv.version, sequence: conv.lastSequence, adminId: admin.id,
+        testing: test.kind === "test",
+        turns: history.reverse().map(row => assistantHistoryTurn(
+          row.photoHash ? "[Foto: contenido no disponible]" : row.videoHash ? "[Video: contenido no disponible]"
+            : row.audioHash ? "[Audio: contenido no disponible]" : row.body.startsWith("[sticker:") ? "[Sticker]"
+            : row.body, row.senderId === member.id)),
+      };
+    }),
+    commit: async (snapshot, body) => db.$transaction(async (tx) => {
+      const conv = await lockConversation(tx);
+      // Discard a turn after any new message, edit, deletion or clear, including a manual reply.
+      if (conv.version !== snapshot.version || conv.lastSequence !== snapshot.sequence) return null;
+      const source = await tx.message.findUnique({ where: { id: snapshot.triggerId }, select: { id: true } });
+      if (!source) return null;
+      const parsed = SendMessageInputSchema.safeParse({ body, conversationVersion: conv.version,
+        clientMessageId: assistantMessageKey(snapshot.triggerId) });
+      if (!parsed.success) return null;
+      const key = { senderId: snapshot.adminId, clientMessageId: parsed.data.clientMessageId };
+      if (await tx.message.findUnique({ where: { senderId_clientMessageId: key }, select: { id: true } }) ||
+        await tx.messageTombstone.findUnique({ where: { senderId_clientMessageId: key }, select: { messageId: true } })) return null;
+      const created = await tx.message.create({ data: { id: randomUUID(), conversationId: 1,
+        senderId: snapshot.adminId, clientMessageId: key.clientMessageId, body: parsed.data.body,
+        sequence: conv.lastSequence + 1, replyToMessageId: snapshot.triggerId }, select: messageSelect });
+      await tx.conversation.update({ where: { id: 1 }, data: { lastSequence: created.sequence } });
+      const replies = await fetchReplyTargets(tx, [snapshot.triggerId]);
+      return serializeMessage(created, replies);
+    }),
+  }, (message) => {
+    app.hub?.messageCreated(message);
+    void notifyPushNewMessage({ config, db, senderId: message.senderId, fetchFn: pushFetchFn })
+      .catch(() => app.log.warn("Aviso push de respuesta automática omitido"));
+  }, () => app.log.warn("Respuesta automática omitida: servicio no disponible"), options.assistantFetchFn) : null;
+  app.addHook("onClose", async () => { await autoReply?.close(); });
   app.addHook("onSend", async (_request, reply, payload) => {
     reply.header("cache-control", "no-store");
     return payload;
@@ -988,6 +1048,13 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     photo?: Buffer, video?: { data: Buffer; hash: string },
     audio?: { data: Buffer; hash: string; durationSeconds: number }) {
     const { clientMessageId, body, conversationVersion, replyToMessageId } = input;
+    const testCommand = parseAssistantTestCommand(body);
+    if (testCommand.kind === "invalid") return fail(reply, ERRORS.validation(ASSISTANT_TEST_USAGE));
+    if (testCommand.kind === "test") {
+      if (photo || video || audio) return fail(reply, ERRORS.validation("El comando --test se envía sólo como texto."));
+      if (!config.assistant?.enabled) return fail(reply, { status: 503, code: "SERVICE_UNAVAILABLE",
+        message: "Alexis AI todavía no está configurado. No se envió la prueba." });
+    }
 
     const photoHash = photo ? createHash("sha256").update(photo).digest("hex") : null;
     const videoHash = video?.hash ?? null;
@@ -1061,6 +1128,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       const result = await send();
       if (result.created) {
         app.hub?.messageCreated(result.message);
+        autoReply?.notify(result.message, conversationVersion);
         // Push genérico (contrato v5, opcional, fuera del DTO): push vacío,
         // sin texto ni remitente. No bloquea la respuesta ni registra
         // contenido o endpoints. Los reintentos idempotentes no reenvían.

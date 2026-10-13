@@ -11,6 +11,7 @@ import { loadConfig, type AppConfig } from "../../src/config.js";
 import { buildApp } from "../../src/http/app.js";
 import { RealtimeHub } from "../../src/realtime.js";
 import { hashPassword } from "../../src/auth/password.js";
+import type { AssistantConfig, AssistantFetch } from "../../src/assistant.js";
 
 const { Pool } = pg;
 
@@ -98,7 +99,7 @@ export async function seedTestUsers(db: PrismaClient): Promise<TestUsers> {
   return { adminId: admin.id, memberId: member.id, adminPassword, memberPassword };
 }
 
-export async function startTestServer(): Promise<TestServer> {
+export async function startTestServer(options: { assistant?: AssistantConfig; assistantFetchFn?: AssistantFetch } = {}): Promise<TestServer> {
   const databaseUrl = requireTestDatabaseUrl();
   migrateTestDb(databaseUrl);
 
@@ -107,6 +108,7 @@ export async function startTestServer(): Promise<TestServer> {
   const journalPath = join(dir, "deletion-journal.jsonl");
   const config = loadConfig({
     ...process.env,
+    ASSISTANT_ENABLED: "false",
     APP_ENV: "test",
     APP_ORIGIN: "http://app.test:5173",
     DATABASE_URL: databaseUrl,
@@ -116,6 +118,7 @@ export async function startTestServer(): Promise<TestServer> {
   // Secretos de prueba (nunca producción).
   config.cookieSecret = "cookie-secret-de-prueba-00000000000000000000";
   config.csrfSecret = "csrf-secret-de-prueba-000000000000000000000";
+  if (options.assistant) config.assistant = options.assistant;
 
   const pool = new pg.Pool({ connectionString: databaseUrl, max: 5 });
   const db = new PrismaClient({ adapter: new PrismaPg(pool) });
@@ -125,7 +128,7 @@ export async function startTestServer(): Promise<TestServer> {
     return seedTestUsers(db);
   });
 
-  const app = await buildApp({ config, db });
+  const app = await buildApp({ config, db, assistantFetchFn: options.assistantFetchFn });
   const hub = new RealtimeHub(app.server, { config, db });
   app.hub = hub;
   await app.listen({ host: "127.0.0.1", port: 0 });

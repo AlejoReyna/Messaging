@@ -90,6 +90,8 @@ docker compose -f compose.yaml -f compose.atlantic.yaml up -d api web
 
 A partir de aquí, cada `push` a `main` con CI verde despliega solo.
 
+Si el VPS tiene `.secrets/kimi_api_key` y el código incluye `compose.assistant.yaml`, el workflow añade ese overlay a todos los comandos Compose. El contexto privado permanece fuera del checkout, referenciado por `ASSISTANT_CONTEXT_HOST_FILE` en `.env`. Las claves y el contexto no se suben a GitHub. `ASSISTANT_ENABLED=false` permite deshabilitar la integración conservando los archivos privados. Ver [Alexis AI](ASSISTANT.md).
+
 ## 4. Qué hace el CD en el servidor
 
 1. `cd /opt/private-chat`, `git fetch origin main` y comprobar que el historial

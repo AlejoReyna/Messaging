@@ -1,4 +1,5 @@
 import { readFileSync, existsSync } from "node:fs";
+import { loadAssistantConfig, type AssistantConfig } from "./assistant.js";
 
 export type AppEnv = "development" | "test" | "production";
 
@@ -19,6 +20,7 @@ export interface AppConfig {
   guestSetupSecret: string;
   /** Web Push VAPID (contrato v5): aviso genérico sin texto. Deshabilitado si faltan claves o asunto. */
   push: PushConfig;
+  assistant?: AssistantConfig;
 }
 
 export interface PushConfig {
@@ -151,6 +153,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     partnerUsername: (env["PARTNER_USERNAME"] ?? "member").toLowerCase(),
     guestSetupSecret: readOptionalSecret(env["GUEST_SETUP_SECRET_FILE"]),
     push: parsePushConfig(env, isProd),
+    assistant: loadAssistantConfig(env),
   };
 }
 
@@ -165,5 +168,7 @@ export function configSummary(config: AppConfig): Record<string, string | number
     deletionJournalPath: config.deletionJournalPath,
     databaseConfigured: config.databaseUrl.length > 0,
     pushEnabled: config.push.enabled,
+    assistantEnabled: config.assistant?.enabled ?? false,
+    assistantAutoReplyEnabled: !!config.assistant?.enabled && config.assistant.autoReplyEnabled !== false,
   };
 }
